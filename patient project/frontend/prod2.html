@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediConnect | Secure Portal</title>
+    <style>
+        :root {
+            --primary: #0ea5e9;
+            --secondary: #0f172a;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --danger: #ef4444;
+        }
+
+        body { font-family: system-ui, sans-serif; background-color: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+
+        /* --- AUTH LAYOUT --- */
+        .auth-container { display: flex; height: 100%; justify-content: center; align-items: center; }
+        .auth-card { background: var(--white); padding: 2rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 100%; max-width: 380px; text-align: center; }
+        .hidden { display: none !important; }
+
+        input, select { width: 100%; padding: 0.8rem; margin-bottom: 1rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; box-sizing: border-box; }
+        .btn { width: 100%; padding: 0.8rem; background: var(--primary); color: white; border: none; border-radius: 0.5rem; font-weight: bold; cursor: pointer; }
+        .btn:hover { background: #0284c7; }
+        .link { color: var(--primary); cursor: pointer; font-size: 0.9rem; text-decoration: underline; margin-top: 10px; display: block; }
+
+        /* --- DASHBOARD LAYOUT --- */
+        #dashboard-screen { height: 100%; display: flex; }
+        .sidebar { width: 250px; background: var(--secondary); color: white; padding: 1.5rem; display: flex; flex-direction: column; }
+        .nav-item { padding: 10px; margin-bottom: 5px; cursor: pointer; border-radius: 5px; color: #cbd5e1; }
+        .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.1); color: white; }
+        
+        .main-content { flex: 1; padding: 2rem; overflow-y: auto; }
+        .card { background: white; padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        th { background: #f1f5f9; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="auth-container">
+        <div class="auth-card">
+            <h2>Welcome Back</h2>
+            <p style="color:#64748b; margin-bottom: 1.5rem;">Login to your portal</p>
+            <form id="loginForm">
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPass" placeholder="Password" required>
+                <button type="submit" class="btn">Login</button>
+            </form>
+            <span class="link" onclick="showSignup()">New patient? Create Account</span>
+        </div>
+    </div>
+
+    <div id="signup-screen" class="auth-container hidden">
+        <div class="auth-card">
+            <h2>Create Account</h2>
+            <p style="color:#64748b; margin-bottom: 1.5rem;">Join as a new Patient</p>
+            <form id="signupForm">
+                <input type="email" id="signupEmail" placeholder="Email" required>
+                <input type="password" id="signupPass" placeholder="Create Password" required>
+                <button type="submit" class="btn">Sign Up</button>
+            </form>
+            <span class="link" onclick="showLogin()">Back to Login</span>
+        </div>
+    </div>
+
+    <div id="dashboard-screen" class="hidden">
+        <div class="sidebar">
+            <h3>MediConnect</h3>
+            <div style="margin-top: 2rem;">
+                <div class="nav-item active">🏠 Home</div>
+                <div id="docMenu" class="hidden">
+                    <div class="nav-item">👥 All Patients</div>
+                    <div class="nav-item">⚠️ Critical Cases</div>
+                </div>
+            </div>
+            <div class="nav-item" style="margin-top: auto;" onclick="logout()">🚪 Logout</div>
+        </div>
+
+        <div class="main-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h2 id="welcomeText">Dashboard</h2>
+                <div style="background:white; padding:5px 15px; border-radius:20px; border:1px solid #ddd;" id="userRoleBadge">Role</div>
+            </div>
+
+            <div id="patientSection" class="card hidden">
+                <h3>👤 My Personal Information</h3>
+                <p style="color: gray; font-size: 0.9rem;">Update your medical details here.</p>
+                <form id="myProfileForm" style="margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="text" id="myName" placeholder="Full Name">
+                    <input type="text" id="myContact" placeholder="Contact No">
+                    <input type="text" id="myAddress" placeholder="Address">
+                    <input type="text" id="myBlood" placeholder="Blood Group">
+                    <button type="submit" class="btn" style="grid-column: span 2;">Save My Info</button>
+                </form>
+            </div>
+
+            <div id="doctorSection" class="card hidden">
+                <h3>🏥 Hospital Patient Records</h3>
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Email</th><th>Role</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="patientsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        let CURRENT_USER = null;
+
+        // --- NAVIGATION LOGIC ---
+        function showSignup() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('signup-screen').classList.remove('hidden');
+        }
+        function showLogin() {
+            document.getElementById('signup-screen').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+        }
+        function logout() {
+            location.reload(); // Simple reload to reset state
+        }
+
+        // --- 1. SIGNUP (Always creates Patient) ---
+        document.getElementById('signupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPass').value;
+
+            try {
+                // Notice: We do NOT send a role. The backend forces 'patient'.
+                const res = await fetch(`${API_URL}/users/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }) 
+                });
+                
+                if (res.ok) {
+                    alert("Account created! Please Login.");
+                    showLogin();
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + err.detail);
+                }
+            } catch (err) { console.error(err); }
+        });
+
+        // --- 2. LOGIN (REAL SECURITY) ---
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPass').value;
+            
+            try {
+                // Hit the /login endpoint which checks passwords
+                const res = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }) 
+                });
+                
+                if (res.ok) {
+                    const user = await res.json();
+                    CURRENT_USER = user;
+                    enterDashboard(user);
+                } else {
+                    const errorData = await res.json();
+                    alert("Login Failed: " + errorData.detail);
+                }
+            } catch (err) { 
+                console.error(err);
+                alert("Backend not connected"); 
+            }
+        });
+
+        // --- 3. DASHBOARD LOGIC (Access Control) ---
+        function enterDashboard(user) {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard-screen').classList.remove('hidden');
+
+            document.getElementById('welcomeText').innerText = `Hello, ${user.email}`;
+            document.getElementById('userRoleBadge').innerText = user.role.toUpperCase();
+
+            // ROLE CHECK
+            if (user.role === "patient") {
+                // Show Patient UI
+                document.getElementById('patientSection').classList.remove('hidden');
+                document.getElementById('doctorSection').classList.add('hidden');
+                document.getElementById('docMenu').classList.add('hidden');
+                
+                // Pre-fill profile if it exists
+                if (user.profile) {
+                    document.getElementById('myName').value = user.profile.full_name;
+                    document.getElementById('myContact').value = user.profile.contact_no;
+                    document.getElementById('myAddress').value = user.profile.address;
+                    document.getElementById('myBlood').value = user.profile.blood_group;
+                }
+
+            } else if (user.role === "doctor" || user.role === "admin") {
+                // Show Doctor UI
+                document.getElementById('patientSection').classList.add('hidden');
+                document.getElementById('doctorSection').classList.remove('hidden');
+                document.getElementById('docMenu').classList.remove('hidden');
+                loadAllPatients();
+            }
+        }
+
+        // Helper: Doctor sees all patients
+        async function loadAllPatients() {
+            const res = await fetch(`${API_URL}/users/`);
+            const users = await res.json();
+            const tbody = document.getElementById('patientsTableBody');
+            tbody.innerHTML = "";
+            
+            users.forEach(u => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.id}</td>
+                        <td>${u.email}</td>
+                        <td><b>${u.role}</b></td>
+                        <td><button style="padding:2px 8px;">View</button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Helper: Patient saves their profile
+        document.getElementById('myProfileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!CURRENT_USER) return;
+
+            const payload = {
+                full_name: document.getElementById('myName').value,
+                contact_no: document.getElementById('myContact').value,
+                address: document.getElementById('myAddress').value,
+                blood_group: document.getElementById('myBlood').value,
+                current_status: "mild" 
+            };
+
+            const res = await fetch(`${API_URL}/users/${CURRENT_USER.id}/profile/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) alert("Profile Saved!");
+        });
+
+    </script>
+</body>
+</html>

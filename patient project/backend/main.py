@@ -1,40 +1,42 @@
 # --- FIX FOR PYTHON 3.12+ / BCRYPT ISSUES ---
 import bcrypt
-# This line "patches" the library to prevent the crash you saw earlier
+# Patching bcrypt to prevent the "72 bytes" or "attribute error" crash
 bcrypt.__about__ = type("about", (object,), {"__version__": bcrypt.__version__})
 # --------------------------------------------
 
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware  # <--- Added CORS for safety
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from typing import List
 
-# Import your database connection logic
+# Ensure you have these files in your folder
 from db import SessionLocal, engine 
-
 import models
 import schemas
 
-# 1. Create tables (just in case reset_db wasn't run, though reset_db is better)
+# Create database tables
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Patient Portal API")
 
-# --- ENABLE CORS (Allows your HTML file to talk to the backend) ---
+# --- CORS SETTINGS (Allows HTML to talk to Backend) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 2. Setup Password Hashing
+# --- PASSWORD SECURITY ---
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_password_hash(password):
     return pwd_context.hash(password)
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
 
 def get_db():
     db = SessionLocal()
@@ -43,25 +45,26 @@ def get_db():
     finally:
         db.close()
 
-# --- USER ENDPOINTS ---
+# --- AUTH ENDPOINTS ---
 
 @app.post("/users/", response_model=schemas.UserRead)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    # Check if user already exists
+    # 1. Check if email exists
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Hash the password
+    # 2. Hash password
     hashed_pwd = get_password_hash(user.password)
     
-    # Create new user
+    # 3. Force Role to PATIENT (Security Rule)
+    # Note: To make an Admin/Doctor, you must manually edit the DB for now.
     new_user = models.User(
         email=user.email,
         hashed_password=hashed_pwd,
-        role=user.role,
-        is_2fa_enabled=user.is_2fa_enabled,
-        has_signed_baa=user.has_signed_baa
+        role=models.UserRole.PATIENT, 
+        is_2fa_enabled=False,
+        has_signed_baa=False
     )
     
     db.add(new_user)
@@ -69,26 +72,53 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
+@app.post("/login", response_model=schemas.UserRead)
+def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
+    # 1. Find user
+    user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
+    
+    # 2. Verify Password
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    if not verify_password(user_credentials.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    
+    return user
+
+# --- DATA ENDPOINTS ---
+
 @app.get("/users/", response_model=List[schemas.UserRead])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     users = db.query(models.User).offset(skip).limit(limit).all()
     return users
 
-# --- PROFILE ENDPOINTS ---
-
 @app.post("/users/{user_id}/profile/", response_model=schemas.ProfileRead)
-def create_profile_for_user(
+def create_or_update_profile(
     user_id: int, 
     profile: schemas.ProfileCreate, 
     db: Session = Depends(get_db)
 ):
+    # 1. Check if the user exists
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-        
-    new_profile = models.Profile(**profile.dict(), user_id=user_id)
+
+    # 2. Check if a profile ALREADY exists for this user
+    db_profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
+
+    if db_profile:
+        # --- UPDATE EXISTING ---
+        # We loop through the data sent from frontend and update the DB object
+        for key, value in profile.dict().items():
+            setattr(db_profile, key, value)
+    else:
+        # --- CREATE NEW ---
+        db_profile = models.Profile(**profile.dict(), user_id=user_id)
+        db.add(db_profile)
     
-    db.add(new_profile)
+    # 3. Save changes
     db.commit()
-    db.refresh(new_profile)
-    return new_profile
+    db.refresh(db_profile)
+    
+    return db_profile
