@@ -1,4 +1,6 @@
 # --- FIX FOR PYTHON 3.12+ / BCRYPT ISSUES ---
+from sqlalchemy.orm.attributes import flag_modified # Critical for updating JSON
+import ai_service # Importing your new separate file
 import bcrypt
 # Patching bcrypt to prevent the "72 bytes" or "attribute error" crash
 bcrypt.__about__ = type("about", (object,), {"__version__": bcrypt.__version__})
@@ -122,3 +124,53 @@ def create_or_update_profile(
     db.refresh(db_profile)
     
     return db_profile
+
+
+
+
+#######################
+# --- CHAT ENDPOINT ---
+
+@app.post("/chat/")
+def chat_with_doctor(request: schemas.ChatRequest, db: Session = Depends(get_db)):
+    # 1. Fetch Chat History from DB using session_id
+    # We use session_id so a user can have multiple different chat logs over time
+    history_record = db.query(models.ChatHistory).filter(
+        models.ChatHistory.session_id == request.session_id
+    ).first()
+
+    # 2. If no history exists, create a new record
+    if not history_record:
+        messages = [] # Empty list
+        new_record = models.ChatHistory(
+            patient_id=request.user_id,
+            session_id=request.session_id,
+            messages=messages
+        )
+        db.add(new_record)
+        db.commit()
+        db.refresh(new_record)
+        history_record = new_record
+    else:
+        # Load existing messages (Make sure it's a list)
+        messages = history_record.messages if history_record.messages else []
+
+    # 3. Call the AI Service (The Separate File)
+    # We pass the OLD history + the NEW message
+    ai_response_text = ai_service.get_ai_response(messages, request.message)
+
+    # 4. Update the Database
+    # Append User Message
+    messages.append({"sender": "patient", "text": request.message})
+    # Append AI Message
+    messages.append({"sender": "ai", "text": ai_response_text})
+
+    # 5. Save Changes
+    # IMPORTANT: SQLAlchemy doesn't always detect changes inside a JSON list. 
+    # We explicitly tell it "this column changed".
+    history_record.messages = messages
+    flag_modified(history_record, "messages")
+    
+    db.commit()
+
+    return {"response": ai_response_text}
