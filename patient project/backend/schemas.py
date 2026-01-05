@@ -3,6 +3,7 @@ from typing import Optional, List
 from models import UserRole, MedicalStatus
 
 # --- PROFILE SCHEMAS ---
+# --- PROFILE SCHEMAS ---
 class ProfileBase(BaseModel):
     full_name: str
     contact_no: str
@@ -24,28 +25,22 @@ class ProfileRead(ProfileBase):
 # --- USER SCHEMAS ---
 class UserCreate(BaseModel):
     email: EmailStr
-    
-    # 1. REMOVED default value. Now you MUST type a password.
-    password: str 
-    
-    # 2. REMOVED default. Now you MUST select a role (patient/doctor).
-    role: UserRole 
-    
-    # 3. These can stay False by default, or remove '= False' to force entry
-    has_signed_baa: bool = False
-    is_2fa_enabled: bool = False
+    password: str
+    # REMOVED 'role'. Users cannot choose their role anymore.
 
 class UserRead(BaseModel):
     id: int
     email: str
     role: UserRole
-    has_signed_baa: bool
-    is_2fa_enabled: bool
     # Returns the nested profile automatically if it exists
     profile: Optional[ProfileRead] = None
 
     class Config:
         from_attributes = True
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
 
 # --- MEDIA & CHAT SCHEMAS ---
 class MediaRead(BaseModel):
