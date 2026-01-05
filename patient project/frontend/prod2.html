@@ -28,7 +28,7 @@
         /* --- DASHBOARD LAYOUT --- */
         #dashboard-screen { height: 100%; display: flex; }
         .sidebar { width: 250px; background: var(--secondary); color: white; padding: 1.5rem; display: flex; flex-direction: column; }
-        .nav-item { padding: 10px; margin-bottom: 5px; cursor: pointer; border-radius: 5px; color: #cbd5e1; }
+        .nav-item { padding: 10px; margin-bottom: 5px; cursor: pointer; border-radius: 5px; color: #cbd5e1; transition: 0.2s; }
         .nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.1); color: white; }
         
         .main-content { flex: 1; padding: 2rem; overflow-y: auto; }
@@ -37,6 +37,9 @@
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
         th { background: #f1f5f9; font-size: 0.85rem; }
+        
+        /* Button in table */
+        .btn-sm { padding: 4px 10px; font-size: 0.8rem; background: var(--secondary); color: white; border: none; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -71,9 +74,10 @@
         <div class="sidebar">
             <h3>MediConnect</h3>
             <div style="margin-top: 2rem;">
-                <div class="nav-item active">🏠 Home</div>
+                <div class="nav-item active" onclick="showHome()">🏠 Home</div>
+                
                 <div id="docMenu" class="hidden">
-                    <div class="nav-item">👥 All Patients</div>
+                    <div class="nav-item" onclick="loadAllPatients()">👥 All Patients</div>
                     <div class="nav-item">⚠️ Critical Cases</div>
                 </div>
             </div>
@@ -124,17 +128,25 @@
             document.getElementById('login-screen').classList.remove('hidden');
         }
         function logout() {
-            location.reload(); // Simple reload to reset state
+            location.reload(); 
+        }
+        function showHome() {
+            if (CURRENT_USER && CURRENT_USER.role === 'patient') {
+                document.getElementById('patientSection').classList.remove('hidden');
+                document.getElementById('doctorSection').classList.add('hidden');
+            } else {
+                // Doctors default to list, but we can make a home screen later
+                loadAllPatients();
+            }
         }
 
-        // --- 1. SIGNUP (Always creates Patient) ---
+        // --- 1. SIGNUP ---
         document.getElementById('signupForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('signupEmail').value;
             const password = document.getElementById('signupPass').value;
 
             try {
-                // Notice: We do NOT send a role. The backend forces 'patient'.
                 const res = await fetch(`${API_URL}/users/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -151,14 +163,13 @@
             } catch (err) { console.error(err); }
         });
 
-        // --- 2. LOGIN (REAL SECURITY) ---
+        // --- 2. LOGIN ---
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPass').value;
             
             try {
-                // Hit the /login endpoint which checks passwords
                 const res = await fetch(`${API_URL}/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -179,7 +190,7 @@
             }
         });
 
-        // --- 3. DASHBOARD LOGIC (Access Control) ---
+        // --- 3. DASHBOARD LOGIC ---
         function enterDashboard(user) {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('dashboard-screen').classList.remove('hidden');
@@ -194,7 +205,7 @@
                 document.getElementById('doctorSection').classList.add('hidden');
                 document.getElementById('docMenu').classList.add('hidden');
                 
-                // Pre-fill profile if it exists
+                // Pre-fill profile
                 if (user.profile) {
                     document.getElementById('myName').value = user.profile.full_name;
                     document.getElementById('myContact').value = user.profile.contact_no;
@@ -203,34 +214,40 @@
                 }
 
             } else if (user.role === "doctor" || user.role === "admin") {
-                // Show Doctor UI
-                document.getElementById('patientSection').classList.add('hidden');
-                document.getElementById('doctorSection').classList.remove('hidden');
+                // Show Doctor UI Elements
                 document.getElementById('docMenu').classList.remove('hidden');
+                
+                // Default view for doctor
                 loadAllPatients();
             }
         }
 
-        // Helper: Doctor sees all patients
+        // --- 4. DOCTOR: LOAD PATIENTS ---
         async function loadAllPatients() {
-            const res = await fetch(`${API_URL}/users/`);
-            const users = await res.json();
-            const tbody = document.getElementById('patientsTableBody');
-            tbody.innerHTML = "";
-            
-            users.forEach(u => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${u.id}</td>
-                        <td>${u.email}</td>
-                        <td><b>${u.role}</b></td>
-                        <td><button style="padding:2px 8px;">View</button></td>
-                    </tr>
-                `;
-            });
+            // FIX: Explicitly Show Table, Hide Profile
+            document.getElementById('doctorSection').classList.remove('hidden');
+            document.getElementById('patientSection').classList.add('hidden');
+
+            try {
+                const res = await fetch(`${API_URL}/users/`);
+                const users = await res.json();
+                const tbody = document.getElementById('patientsTableBody');
+                tbody.innerHTML = "";
+                
+                users.forEach(u => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${u.id}</td>
+                            <td>${u.email}</td>
+                            <td><b>${u.role}</b></td>
+                            <td><button class="btn-sm">View</button></td>
+                        </tr>
+                    `;
+                });
+            } catch (err) { console.error(err); }
         }
 
-        // Helper: Patient saves their profile
+        // --- 5. PATIENT: SAVE PROFILE ---
         document.getElementById('myProfileForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!CURRENT_USER) return;
