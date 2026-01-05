@@ -1,5 +1,6 @@
 media/
-
+app/
+.env
 *.db
 
 __pycache__/
