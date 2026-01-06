@@ -1,8 +1,10 @@
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
+import os
+load_dotenv()
 
-# REPLACE THIS with your actual key
-API_KEY = "api key" 
+API_KEY = os.getenv("gemini_api_key")
 
 client = genai.Client(api_key=API_KEY)
 
