@@ -1,5 +1,14 @@
 import google.generativeai as genai
+from google.genai import types
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
+
+API_KEY = os.getenv("gemini_api_key")
+
+client = genai.Client(api_key=API_KEY)
+
 
 # --- CONFIGURATION ---
 # ideally, use os.getenv("GEMINI_API_KEY") for security
