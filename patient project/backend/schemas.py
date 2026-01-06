@@ -58,3 +58,12 @@ class ChatHistoryRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+
+
+# --- NEW CHAT SCHEMA ---
+class ChatRequest(BaseModel):
+    user_id: int
+    session_id: str  # Unique ID for this conversation (e.g. "session_user1_date")
+    message: str
