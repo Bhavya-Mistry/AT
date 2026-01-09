@@ -1,19 +1,14 @@
-import google.generativeai as genai
+from google import genai
 from google.genai import types
-from dotenv import load_dotenv
 import os
+import time
 
+from dotenv import load_dotenv
 load_dotenv()
 
 API_KEY = os.getenv("gemini_api_key")
 
 client = genai.Client(api_key=API_KEY)
-
-
-# --- CONFIGURATION ---
-# ideally, use os.getenv("GEMINI_API_KEY") for security
-API_KEY = "AIzaSyCVUM7zcLXSmcAN0zvC0nZAqS-_a5FMI-I" 
-genai.configure(api_key=API_KEY)
 
 # --- SYSTEM INSTRUCTIONS ---
 SYSTEM_PROMPT = """
@@ -27,37 +22,85 @@ RULES:
 4. If the user types 'SUMMARIZE', you must stop chatting and output a STRICT JSON summary.
 """
 
-# --- INITIALIZE MODEL ---
-# We use 1.5-flash (standard fast model). 2.5 does not exist yet.
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash", 
-    system_instruction=SYSTEM_PROMPT
-)
-
 def get_ai_response(db_history: list, new_user_message: str) -> str:
     """
-    1. Converts Database History -> Gemini History Format
+    1. Converts Database History -> New SDK History Format
     2. Sends message to AI
     3. Returns AI text response
     """
     
-    # Step A: Convert DB JSON format to Gemini format
-    # DB Format:     [{ "sender": "patient", "text": "hi" }, { "sender": "ai", "text": "hello" }]
-    # Gemini Format: [{ "role": "user", "parts": ["hi"] },   { "role": "model", "parts": ["hello"] }]
-    gemini_history = []
+    # Step A: Convert DB History to New SDK Format
+    # The new SDK uses 'role' and 'parts' inside a Content object
+    chat_history = []
     
     for msg in db_history:
         role = "user" if msg.get("sender") == "patient" else "model"
-        # We only add valid text messages to history
         if msg.get("text"): 
-            gemini_history.append({"role": role, "parts": [msg["text"]]})
+            chat_history.append(types.Content(
+                role=role,
+                parts=[types.Part.from_text(text=msg["text"])]
+            ))
 
-    # Step B: Start Chat
-    chat = model.start_chat(history=gemini_history)
+    # Step B: Create Chat Session
+    chat = client.chats.create(
+        model="gemini-2.5-flash",
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=0.7,
+        ),
+        history=chat_history
+    )
     
-    # Step C: Send Message & Handle Errors
+    # Step C: Send Message
     try:
         response = chat.send_message(new_user_message)
         return response.text
     except Exception as e:
         return f"I'm having trouble connecting right now. Error: {str(e)}"
+
+def transcribe_audio(file_path: str) -> str:
+    """
+    Uploads audio to Gemini (New SDK) and returns the transcription.
+    """
+    try:
+        print(f"Uploading {file_path} to Gemini...")
+        
+        # 1. Upload the file using the new Client
+        upload_result = client.files.upload(file=file_path)
+        
+        # 2. Wait for processing
+        while upload_result.state.name == "PROCESSING":
+            print("Processing audio...")
+            time.sleep(1)
+            # Refresh file status
+            upload_result = client.files.get(name=upload_result.name)
+
+        if upload_result.state.name == "FAILED":
+            return "Audio processing failed by Gemini."
+
+        print("Audio ready. Generating transcript...")
+
+        # 3. Generate Content (Using Audio + Prompt)
+        prompt = "Listen to this audio. Transcribe exactly what is said in Hindi, but write it using the English alphabet (Hinglish/Roman Script). Example: 'Tum kaise ho?'"
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_uri(
+                            file_uri=upload_result.uri,
+                            mime_type=upload_result.mime_type
+                        ),
+                        types.Part.from_text(text=prompt)
+                    ]
+                )
+            ]
+        )
+        
+        return response.text
+
+    except Exception as e:
+        print(f"Transcription Error: {e}")
+        return f"Error processing audio: {str(e)}"

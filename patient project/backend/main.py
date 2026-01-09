@@ -6,7 +6,10 @@ import bcrypt
 bcrypt.__about__ = type("about", (object,), {"__version__": bcrypt.__version__})
 # --------------------------------------------
 
-from fastapi import FastAPI, Depends, HTTPException, status
+# main.py top imports
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form 
+import shutil
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
@@ -174,3 +177,53 @@ def chat_with_doctor(request: schemas.ChatRequest, db: Session = Depends(get_db)
     db.commit()
 
     return {"response": ai_response_text}
+
+
+# --- AUDIO TRANSCRIPTION ENDPOINT ---
+# --- UPDATED AUDIO TRANSCRIPTION ENDPOINT ---
+
+@app.post("/transcribe/")
+async def transcribe_audio_endpoint(
+    file: UploadFile = File(...), 
+    user_id: int = Form(...),       # <--- New: We need to know WHO the patient is
+    db: Session = Depends(get_db)   # <--- New: Database connection
+):
+    # 1. Save the uploaded file temporarily to disk
+    temp_filename = f"temp_{file.filename}"
+    
+    try:
+        with open(temp_filename, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # 2. Call our AI Service
+        transcription_text = ai_service.transcribe_audio(temp_filename)
+        
+        # 3. Clean up (Delete the temp file)
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+
+        # 4. SAVE TO DATABASE (The missing part!)
+        # We use "temp_processed" for drive_file_id because we deleted the file. 
+        # (Later you can upload to Real Google Drive if you want)
+        new_media = models.MedicalMedia(
+            patient_id=user_id,
+            file_type="audio",
+            drive_file_id="temp_processed", # Placeholder required by your model
+            transcript=transcription_text
+        )
+        
+        db.add(new_media)
+        db.commit()
+        db.refresh(new_media)
+            
+        return {
+            "transcript": transcription_text, 
+            "media_id": new_media.id,
+            "status": "Saved to Medical Records"
+        }
+
+    except Exception as e:
+        # Clean up if error occurs
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+        raise HTTPException(status_code=500, detail=str(e))
