@@ -2,5 +2,5 @@ media/
 app/
 .env
 *.db
-
+*.zip
 __pycache__/
