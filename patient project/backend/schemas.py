@@ -1,8 +1,8 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from models import UserRole, MedicalStatus
+from datetime import datetime
 
-# --- PROFILE SCHEMAS ---
 # --- PROFILE SCHEMAS ---
 class ProfileBase(BaseModel):
     full_name: str
@@ -24,15 +24,15 @@ class ProfileRead(ProfileBase):
 
 # --- USER SCHEMAS ---
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str
     password: str
-    # REMOVED 'role'. Users cannot choose their role anymore.
+    is_policy_accepted: bool = False
+    has_signed_baa: bool = False
 
 class UserRead(BaseModel):
     id: int
     email: str
     role: UserRole
-    # Returns the nested profile automatically if it exists
     profile: Optional[ProfileRead] = None
 
     class Config:
@@ -45,9 +45,11 @@ class UserLogin(BaseModel):
 # --- MEDIA & CHAT SCHEMAS ---
 class MediaRead(BaseModel):
     id: int
+    file_name: str
     file_type: str
-    drive_file_id: str
+    drive_view_link: Optional[str] = None
     transcript: Optional[str] = None
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -55,15 +57,20 @@ class MediaRead(BaseModel):
 class ChatHistoryRead(BaseModel):
     session_id: str
     messages: List[dict]
+    summary: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
-
-
-
-# --- NEW CHAT SCHEMA ---
+# --- CHAT INPUT ---
 class ChatRequest(BaseModel):
     user_id: int
-    session_id: str  # Unique ID for this conversation (e.g. "session_user1_date")
+    session_id: str
     message: str
+
+# --- DOCTOR PRESCRIPTION INPUT (NEW) ---
+class PrescriptionRequest(BaseModel):
+    session_id: str
+    doctor_notes: str
+    follow_up_days: int = 3 # Default to 3 days
