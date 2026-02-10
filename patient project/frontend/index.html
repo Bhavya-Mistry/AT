@@ -260,19 +260,21 @@
                         </div>
 
                         <div class="chat-controls">
+                            <input type="file" id="chat-file-upload" hidden accept="image/*,application/pdf" onchange="app.uploadChatAttachment(this)">
+                                                
+                            <button class="btn btn-icon" onclick="document.getElementById('chat-file-upload').click()" title="Upload Medical Record">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        
                             <button id="mic-btn" class="mic-btn" onclick="recorder.toggle()" title="Voice Input">
                                 <i class="fa-solid fa-microphone"></i>
                             </button>
                             
                             <div class="input-wrapper">
-                                <input type="text" id="chat-input" placeholder="Describe your symptoms..." 
+                                <input type="text" id="chat-input" placeholder="Type a message..." 
                                        onkeypress="if(event.key==='Enter') app.sendMessage()">
                             </div>
                             
-                            <button class="btn btn-icon" onclick="app.sendMessage('SUMMARIZE')" title="Generate Summary">
-                                <i class="fa-solid fa-list-check"></i>
-                            </button>
-
                             <button class="btn btn-primary" onclick="app.sendMessage()">
                                 <i class="fa-solid fa-paper-plane"></i>
                             </button>
@@ -341,12 +343,18 @@
                         <p>Upload and manage your medical documents</p>
                     </div>
                     <div class="page-actions">
-                        <input type="file" id="file-upload" hidden onchange="app.uploadFile(this)">
-                        <button class="btn btn-primary" onclick="document.getElementById('file-upload').click()">
-                            <i class="fa-solid fa-cloud-arrow-up"></i>
-                            <span>Upload File</span>
-                        </button>
-                    </div>
+    <input type="file" id="file-upload" hidden onchange="app.uploadFile(this)">
+    <button class="btn btn-outline" onclick="document.getElementById('file-upload').click()">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Upload</span>
+    </button>
+
+    <input type="file" id="ocr-upload" hidden accept="image/*,application/pdf" onchange="app.scanDocument(this)">
+    <button class="btn btn-primary" onclick="document.getElementById('ocr-upload').click()">
+        <i class="fa-solid fa-eye"></i>
+        <span>Scan with AI</span>
+    </button>
+</div>
                 </div>
                 
                 <div class="panel-container">

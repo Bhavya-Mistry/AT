@@ -50,19 +50,6 @@ const ui = {
     },
 
     // Info Modals
-    showDoc: (type) => {
-        const title = document.getElementById('modal-title');
-        const content = document.getElementById('modal-content');
-        document.getElementById('modal-overlay').classList.remove('hidden');
-
-        if(type === 'privacy') {
-            title.innerText = "Privacy Policy";
-            content.innerHTML = "<p>We respect your privacy. All your data is encrypted and stored securely...</p>";
-        } else {
-            title.innerText = "BAA Agreement";
-            content.innerHTML = "<p><strong>Business Associate Agreement</strong><br>By checking this box, you agree that we handle PHI in compliance with HIPAA...</p>";
-        }
-    },
     closeModal: () => document.getElementById('modal-overlay').classList.add('hidden'),
 
     // Rx Modal
@@ -70,7 +57,27 @@ const ui = {
         document.getElementById('rx-session-id').value = sessionId;
         document.getElementById('modal-rx-overlay').classList.remove('hidden');
     },
-    closeRxModal: () => document.getElementById('modal-rx-overlay').classList.add('hidden')
+    closeRxModal: () => document.getElementById('modal-rx-overlay').classList.add('hidden'),
+    // In frontend/app.js -> ui object -> showDoc function
+
+    showDoc: (type, contentData = null) => { // Add contentData argument
+        const title = document.getElementById('modal-title');
+        const content = document.getElementById('modal-content');
+        document.getElementById('modal-overlay').classList.remove('hidden');
+
+        if(type === 'privacy') {
+            title.innerText = "Privacy Policy";
+            content.innerHTML = "<p>We respect your privacy...</p>";
+        } else if (type === 'analysis') { 
+            // NEW: Show AI Analysis Result
+            title.innerText = "AI Document Analysis";
+            // Simple formatting for the AI text
+            content.innerHTML = `<div style="white-space: pre-wrap; font-family: monospace;">${contentData}</div>`;
+        } else {
+            // ... existing code
+        }
+    },
+
 };
 
 // === MAIN LOGIC ===
@@ -328,7 +335,7 @@ startNewChat: () => {
             files.forEach(f => {
                 let icon = 'fa-file';
                 if (f.file_type === 'audio') icon = 'fa-file-audio';
-                if (f.file_type === 'image') icon = 'fa-file-image';
+                if (f.file_type === 'image' || f.file_type === 'image_ocr') icon = 'fa-file-image';
                 if (f.file_name.endsWith('.pdf')) icon = 'fa-file-pdf';
 
                 const card = document.createElement('div');
@@ -551,7 +558,98 @@ startNewChat: () => {
                 alert("Failed to send prescription.");
             }
         } catch (err) { alert("Error sending prescription"); console.error(err); }
-    }
+    },
+    // Add this inside the 'app' object in frontend/app.js
+
+    scanDocument: async (input) => {
+        const file = input.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("user_id", state.user.id);
+
+        ui.showToast("Scanning & Analyzing...");
+
+        try {
+            // CALL YOUR NEW ENDPOINT
+            const res = await fetch(`${API_URL}/ocr/analyze`, { method: 'POST', body: formData });
+            
+            if (res.ok) {
+                const data = await res.json();
+                ui.showToast("Analysis Complete!");
+                
+                // Show the AI Analysis in a popup
+                ui.showDoc('analysis', data.analysis);
+                
+                // Refresh the file list to show the saved image
+                app.loadFiles(state.user.id, 'gallery-grid');
+            } else {
+                alert("OCR Scan failed");
+            }
+        } catch (err) { alert("Error scanning document"); console.error(err); }
+    },
+    uploadChatAttachment: async (input) => {
+        const file = input.files[0];
+        if (!file) return;
+
+        // Show a temporary "Uploading..." bubble
+        const history = document.getElementById('chat-history');
+        const tempId = `temp-${Date.now()}`;
+        history.innerHTML += `
+            <div class="msg user" id="${tempId}">
+                <div class="bubble" style="opacity: 0.7;">
+                    <i class="fas fa-spinner fa-spin"></i> Uploading & Scanning ${file.name}...
+                </div>
+            </div>`;
+        history.scrollTop = history.scrollHeight;
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("user_id", state.user.id);
+        formData.append("session_id", state.sessionId);
+
+        try {
+            const res = await fetch(`${API_URL}/chat/upload`, { 
+                method: 'POST', 
+                body: formData 
+            });
+            
+            // Remove temp bubble
+            const tempEl = document.getElementById(tempId);
+            if(tempEl) tempEl.remove();
+
+            if (res.ok) {
+                const data = await res.json();
+
+                // Show the ACTUAL file bubble
+                // We add a 'view' button so they can see the image
+                history.innerHTML += `
+                    <div class="msg user">
+                        <div class="bubble">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
+                                <i class="fa-solid fa-file-medical" style="font-size: 1.5rem;"></i>
+                                <strong>${file.name}</strong>
+                            </div>
+                            <small style="display:block; margin-bottom:5px; color:#e0f2fe;">
+                                <i class="fas fa-check"></i> Scanned & Saved to Files
+                            </small>
+                            <a href="${data.file_url}" target="_blank" style="color:white; text-decoration:underline; font-size:0.8rem;">View Image</a>
+                        </div>
+                    </div>`;
+                
+                // Immediately trigger an AI response
+                // We send a hidden message to the AI asking it to comment on the file
+                app.sendMessage("I have uploaded a medical document. Please analyze the contents extracted above.");
+
+            } else {
+                alert("Upload failed.");
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById(tempId).innerHTML = `<div class="bubble" style="background:#ef4444; color:white;">Upload Error</div>`;
+        }
+    },
 };
 
 // === AUDIO RECORDER LOGIC ===
