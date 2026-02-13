@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediConnect AI | Secure Patient Portal</title>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts - Distinctive Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+        <i class="fas fa-check-circle"></i>
+        <span>Action Successful</span>
+    </div>
+
+    <!-- GENERIC INFO MODAL -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal">
+            <button class="modal-close" onclick="ui.closeModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 id="modal-title">Document</h2>
+            <div id="modal-content" class="modal-body"></div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="ui.closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRESCRIPTION MODAL -->
+    <div id="modal-rx-overlay" class="modal-overlay hidden">
+        <div class="modal modal-large">
+            <button class="modal-close" onclick="ui.closeRxModal()">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="modal-header">
+                <i class="fa-solid fa-file-prescription"></i>
+                <h2>Write Prescription</h2>
+            </div>
+            <p class="modal-subtitle">This will generate a PDF and save it to the patient's files.</p>
+            
+            <form id="form-prescription" onsubmit="app.submitPrescription(event)">
+                <input type="hidden" id="rx-session-id">
+                
+                <div class="form-group">
+                    <label>Doctor's Notes & Prescription</label>
+                    <textarea id="rx-notes" rows="6" required placeholder="e.g. Amoxicillin 500mg - Take 1 tablet every 8 hours for 5 days..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Schedule Follow-up Chat In (Days)</label>
+                    <input type="number" id="rx-days" value="3" min="1" max="30" required>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="ui.closeRxModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        Generate & Send
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- AUTHENTICATION VIEW -->
+    <div id="view-auth" class="auth-container">
+        <div class="auth-background">
+            <div class="auth-shape shape-1"></div>
+            <div class="auth-shape shape-2"></div>
+            <div class="auth-shape shape-3"></div>
+        </div>
+        
+        <div class="auth-card">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                </div>
+                <h1>MediConnect</h1>
+                <p class="tagline">Secure AI-Powered Healthcare</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="tab active" onclick="ui.toggleAuthTab('login')">
+                    <span>Login</span>
+                </button>
+                <button class="tab" onclick="ui.toggleAuthTab('signup')">
+                    <span>Sign Up</span>
+                </button>
+            </div>
+
+            <form id="form-login" onsubmit="app.handleLogin(event)">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="input-icon">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="login-email" required placeholder="name@example.com">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="login-pass" required placeholder="••••••••">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <span>Log In</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <form id="form-signup" class="hidden" onsubmit="app.handleSignup(event)">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="input-icon">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="signup-email" required placeholder="name@example.com">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Create Password</label>
+                    <div class="input-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="signup-pass" required placeholder="••••••••">
+                    </div>
+                </div>
+                
+                <div class="legal-checks">
+                    <div class="legal-check">
+                        <input type="checkbox" id="check-privacy" required>
+                        <label for="check-privacy">
+                            I agree to the <a href="#" onclick="ui.showDoc('privacy')">Privacy Policy</a> & Consent to Data Collection.
+                        </label>
+                    </div>
+                    <div class="legal-check">
+                        <input type="checkbox" id="check-baa" required>
+                        <label for="check-baa">
+                            I have read and agree to the <a href="#" onclick="ui.showDoc('baa')">BAA (Business Associate Agreement)</a>.
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">
+                    <span>Create Account</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APPLICATION VIEW -->
+    <div id="view-app" class="app-layout hidden">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                </div>
+                <span class="brand-text">MediConnect</span>
+            </div>
+            
+            <nav>
+                <ul id="nav-patient" class="nav-links hidden">
+                    <li class="active" onclick="ui.nav('chat')">
+                        <i class="fa-solid fa-comments"></i>
+                        <span>AI Chat</span>
+                    </li>
+                    <li onclick="ui.nav('profile')">
+                        <i class="fa-solid fa-user-injured"></i>
+                        <span>My Profile</span>
+                    </li>
+                    <li onclick="ui.nav('files')">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <span>My Files</span>
+                    </li>
+                </ul>
+
+                <ul id="nav-doctor" class="nav-links hidden">
+                    <li class="active" onclick="ui.nav('dashboard')">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Patient Dashboard</span>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="user-footer">
+                <div class="user-card">
+                    <div class="avatar" id="current-user-avatar">U</div>
+                    <div class="user-info">
+                        <span class="user-name" id="current-user-name">User</span>
+                        <small class="user-role">Patient</small>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="app.logout()" title="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content">
+            
+            <!-- AI CHAT SECTION -->
+            <section id="tab-chat" class="tab-section hidden">
+                <div class="chat-layout-grid">
+                    
+                    <!-- Chat Sessions Sidebar -->
+                    <div class="session-sidebar">
+                        <button class="btn btn-primary btn-block" onclick="app.startNewChat()">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>New Chat</span>
+                        </button>
+                        <div class="sessions-header">
+                            <h3>Chat History</h3>
+                        </div>
+                        <div id="session-list" class="session-list">
+                            <div class="loading-skeleton">
+                                <div class="skeleton-item"></div>
+                                <div class="skeleton-item"></div>
+                                <div class="skeleton-item"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Window -->
+                    <div class="chat-wrapper">
+                        <div class="chat-header">
+                            <div>
+                                <h2 id="chat-title">New Consultation</h2>
+                                <p class="chat-subtitle">AI Medical Assistant</p>
+                            </div>
+                            <span class="badge badge-success" id="chat-status">
+                                <i class="fas fa-circle"></i>
+                                Active
+                            </span>
+                        </div>
+                        
+                        <div id="chat-history" class="chat-history">
+                            <div class="msg ai">
+                                <div class="msg-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="bubble">
+                                    <p>Hello! I am your Medical AI Assistant. How can I help you today?</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chat-controls">
+                            <input type="file" id="chat-file-upload" hidden accept="image/*,application/pdf" onchange="app.uploadChatAttachment(this)">
+                                                
+                            <button class="btn btn-icon" onclick="document.getElementById('chat-file-upload').click()" title="Upload Medical Record">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        
+                            <button id="mic-btn" class="mic-btn" onclick="recorder.toggle()" title="Voice Input">
+                                <i class="fa-solid fa-microphone"></i>
+                            </button>
+                            
+                            <div class="input-wrapper">
+                                <input type="text" id="chat-input" placeholder="Type a message..." 
+                                       onkeypress="if(event.key==='Enter') app.sendMessage()">
+                            </div>
+                            
+                            <button class="btn btn-primary" onclick="app.sendMessage()">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PROFILE SECTION -->
+            <section id="tab-profile" class="tab-section hidden">
+                <div class="page-header">
+                    <h1>My Medical Profile</h1>
+                    <p>Keep your information up to date for better care</p>
+                </div>
+                
+                <div class="panel-container">
+                    <div id="profile-success-alert" class="alert-box success hidden">
+                        <i class="fa-solid fa-check-circle"></i>
+                        <span>Your profile has been successfully updated!</span>
+                    </div>
+
+                    <form id="profile-form" onsubmit="app.updateProfile(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" id="p-name" placeholder="John Doe">
+                            </div>
+                            <div class="form-group">
+                                <label>Contact Number</label>
+                                <input type="text" id="p-contact" placeholder="+1 (555) 123-4567">
+                            </div>
+                            <div class="form-group">
+                                <label>Blood Group</label>
+                                <input type="text" id="p-blood" placeholder="A+">
+                            </div>
+                            <div class="form-group">
+                                <label>Medical Status</label>
+                                <select id="p-status">
+                                    <option value="mild">Mild</option>
+                                    <option value="critical">Critical</option>
+                                    <option value="past_record">Past Record</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Address</label>
+                            <textarea id="p-address" rows="3" placeholder="123 Main Street, City, State, ZIP"></textarea>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                <span>Save Profile</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- FILES SECTION -->
+            <section id="tab-files" class="tab-section hidden">
+                <div class="page-header">
+                    <div>
+                        <h1>Medical Records & Files</h1>
+                        <p>Upload and manage your medical documents</p>
+                    </div>
+                    <div class="page-actions">
+    <input type="file" id="file-upload" hidden onchange="app.uploadFile(this)">
+    <button class="btn btn-outline" onclick="document.getElementById('file-upload').click()">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Upload</span>
+    </button>
+
+    <input type="file" id="ocr-upload" hidden accept="image/*,application/pdf" onchange="app.scanDocument(this)">
+    <button class="btn btn-primary" onclick="document.getElementById('ocr-upload').click()">
+        <i class="fa-solid fa-eye"></i>
+        <span>Scan with AI</span>
+    </button>
+</div>
+                </div>
+                
+                <div class="panel-container">
+                    <div id="gallery-grid" class="gallery-grid">
+                        <!-- Files will be loaded here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- DOCTOR DASHBOARD -->
+            <section id="tab-dashboard" class="tab-section hidden">
+                <div class="page-header">
+                    <h1>Patient Overview</h1>
+                    <p>Manage and monitor your patients</p>
+                </div>
+                
+                <div class="panel-container">
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Patient Name</th>
+                                    <th>Contact</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patient-table-body">
+                                <!-- Patients will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PATIENT DETAIL VIEW -->
+            <section id="tab-patient-detail" class="tab-section hidden">
+                <button class="btn btn-link back-btn" onclick="ui.nav('dashboard')">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                </button>
+                
+                <div class="patient-detail-grid">
+                    <!-- Patient Info Card -->
+                    <div class="detail-card">
+                        <div class="detail-header">
+                            <div>
+                                <h2 id="detail-name">Patient Name</h2>
+                                <span id="detail-status" class="status-badge">Status</span>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-info">
+                            <div class="info-row">
+                                <i class="fas fa-envelope"></i>
+                                <div>
+                                    <label>Email</label>
+                                    <span id="detail-email">-</span>
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="fas fa-phone"></i>
+                                <div>
+                                    <label>Contact</label>
+                                    <span id="detail-contact">-</span>
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="fas fa-location-dot"></i>
+                                <div>
+                                    <label>Address</label>
+                                    <span id="detail-address">-</span>
+                                </div>
+                            </div>
+                            <div class="info-row">
+                                <i class="fas fa-droplet"></i>
+                                <div>
+                                    <label>Blood Group</label>
+                                    <span id="detail-blood">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Summaries -->
+                    <div class="detail-card">
+                        <div class="section-header">
+                            <i class="fa-solid fa-robot"></i>
+                            <div>
+                                <h3>AI Triage & Consultations</h3>
+                                <p>Sorted by Urgency (High Priority First)</p>
+                            </div>
+                        </div>
+                        
+                        <div id="summary-grid" class="summary-grid">
+                            <!-- Summary cards will be injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Patient Files -->
+                    <div class="detail-card">
+                        <div class="section-header">
+                            <i class="fa-solid fa-folder-open"></i>
+                            <div>
+                                <h3>Patient's Files</h3>
+                                <p>Medical records and documents</p>
+                            </div>
+                        </div>
+                        
+                        <div id="detail-gallery-grid" class="gallery-grid">
+                            <!-- Files will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

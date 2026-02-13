@@ -4,3 +4,6 @@ app/
 *.db
 *.zip
 __pycache__/
+
+*.json
+uploaded_files/
