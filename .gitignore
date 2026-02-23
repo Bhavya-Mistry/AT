@@ -1,10 +1,11 @@
-media/
-app/
-.env
-*.db
 *.zip
+<<<<<<< Updated upstream
 __pycache__/
 
 *.json
 uploaded_files/
 venv/
+=======
+media/
+__pycache__/
+>>>>>>> Stashed changes
