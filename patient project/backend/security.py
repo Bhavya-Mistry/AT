@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
 import schemas
-
+from passlib.context import CryptContext
+from models import UserRole
 
 load_dotenv()
 
@@ -53,14 +54,40 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("user_id")
         email: str = payload.get("email")
+        role: str = payload.get("role")
 
         if user_id is None or email is None:
             raise credentials_exception
 
         # We pack the decoded data into the schema we made earlier
-        token_data = schemas.TokenData(user_id=user_id, email=email)
+        # token_data = schemas.TokenData(user_id=user_id, email=email)
+        token_data = schemas.TokenData(user_id=user_id, email=email, role=role)
 
     except JWTError:
         raise credentials_exception
 
     return token_data
+
+
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_current_doctor(current_user: schemas.TokenData = Depends(get_current_user)):
+    """
+    VIP Bouncer: First checks if the user is logged in,
+    then checks if they have the 'DOCTOR' role.
+    """
+    if current_user.role != UserRole.DOCTOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to perform this action. Doctors only.",
+        )
+    return current_user

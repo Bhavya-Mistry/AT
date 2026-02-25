@@ -158,3 +158,22 @@ def transcribe_audio(file_path: str) -> str:
     except Exception as e:
         print(f"Transcription Error: {e}")
         return f"Error processing audio: {str(e)}"
+
+
+def clean_ai_json(text_response: str):
+    """
+    Removes markdown code blocks (```json ... ```) if Gemini adds them.
+    Returns a Python Dict or None if parsing fails.
+    """
+    clean_text = text_response.strip()
+    if clean_text.startswith("```json"):
+        clean_text = clean_text[7:]
+    if clean_text.startswith("```"):
+        clean_text = clean_text[3:]
+    if clean_text.endswith("```"):
+        clean_text = clean_text[:-3]
+
+    try:
+        return json.loads(clean_text)
+    except json.JSONDecodeError:
+        return None
