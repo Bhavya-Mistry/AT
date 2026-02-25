@@ -3,110 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MediConnect Tester</title>
+    <title>MediConnect Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="app">
-        <header>
-            <h1>MediConnect API Tester</h1>
-            <div id="auth-status">Not logged in</div>
-            <button id="logout-btn" class="hidden" onclick="logout()">Logout</button>
-        </header>
+    <div id="toast-container"></div>
 
-        <section id="auth-section">
-            <div class="card">
-                <h2>Login</h2>
-                <form id="login-form">
-                    <input type="email" id="login-email" placeholder="Email" required>
-                    <input type="password" id="login-password" placeholder="Password" required>
-                    <button type="submit">Login</button>
+    <nav id="navbar" class="hidden">
+        <div class="nav-brand">
+            <i class="ph ph-heartbeat"></i> MediConnect
+        </div>
+        <div class="nav-user">
+            <span id="user-greeting"></span>
+            <button class="btn btn-outline" onclick="app.logout()">
+                <i class="ph ph-sign-out"></i> Logout
+            </button>
+        </div>
+    </nav>
+
+    <main id="app-container">
+        <section id="auth-view" class="view active-view flex-center">
+            <div class="auth-card card">
+                <div class="brand-header">
+                    <i class="ph-fill ph-heartbeat"></i>
+                    <h2>MediConnect</h2>
+                    <p>Welcome back. Please login to your account.</p>
+                </div>
+                
+                <div class="tabs">
+                    <button class="tab active" onclick="ui.switchAuthTab('login')">Login</button>
+                    <button class="tab" onclick="ui.switchAuthTab('register')">Register</button>
+                </div>
+
+                <form id="login-form" class="auth-form" onsubmit="app.handleLogin(event)">
+                    <div class="input-group">
+                        <i class="ph ph-envelope"></i>
+                        <input type="email" id="login-email" placeholder="Email Address" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="ph ph-lock"></i>
+                        <input type="password" id="login-password" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-full" id="login-btn">Sign In</button>
                 </form>
-            </div>
-            <div class="card">
-                <h2>Register Patient</h2>
-                <form id="register-form">
-                    <input type="email" id="reg-email" placeholder="Email" required>
-                    <input type="password" id="reg-password" placeholder="Password" required>
-                    <button type="submit">Register</button>
+
+                <form id="register-form" class="auth-form hidden" onsubmit="app.handleRegister(event)">
+                    <div class="input-group">
+                        <i class="ph ph-envelope"></i>
+                        <input type="email" id="reg-email" placeholder="Email Address" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="ph ph-lock"></i>
+                        <input type="password" id="reg-password" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-full" id="reg-btn">Create Account</button>
                 </form>
             </div>
         </section>
 
-        <section id="patient-section" class="hidden">
-            <h2>Patient Dashboard</h2>
-            
-            <div class="card">
-                <h3>Profile Management</h3>
-                <form id="profile-form">
-                    <input type="text" id="prof-name" placeholder="Full Name" required>
-                    <input type="text" id="prof-contact" placeholder="Contact No" required>
-                    <input type="text" id="prof-address" placeholder="Address" required>
-                    <input type="text" id="prof-blood" placeholder="Blood Group" required>
-                    <select id="prof-status">
-                        <option value="mild">Mild</option>
-                        <option value="critical">Critical</option>
-                        <option value="past_record">Past Record</option>
-                    </select>
-                    <button type="submit">Update Profile</button>
-                </form>
-            </div>
-
-            <div class="card">
-                <h3>AI Triage Chat</h3>
-                <div id="chat-box"></div>
-                <form id="chat-form">
-                    <input type="text" id="chat-input" placeholder="Type a message (Type SUMMARIZE to end)" required>
-                    <button type="submit">Send</button>
-                </form>
-                <form id="chat-upload-form" style="margin-top: 10px;">
-                    <input type="file" id="chat-file" accept="image/*,.pdf" required>
-                    <button type="submit">Upload to Chat</button>
-                </form>
-            </div>
-
-            <div class="card">
-                <h3>Media & Tools</h3>
-                <div class="grid-2">
-                    <div>
-                        <h4>Upload Audio (Transcription)</h4>
-                        <input type="file" id="audio-file" accept="audio/*">
-                        <button onclick="uploadMedia('audio-file', '/transcribe/')">Transcribe</button>
+        <section id="patient-view" class="view hidden">
+            <div class="dashboard-grid">
+                
+                <div class="grid-col">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="ph ph-user-circle"></i> My Profile</h3>
+                        </div>
+                        <form id="profile-form" onsubmit="app.updateProfile(event)">
+                            <div class="input-grid">
+                                <input type="text" id="prof-name" class="input" placeholder="Full Name" required>
+                                <input type="text" id="prof-contact" class="input" placeholder="Contact No" required>
+                                <input type="text" id="prof-blood" class="input" placeholder="Blood Group">
+                                <select id="prof-status" class="input">
+                                    <option value="mild">Status: Mild</option>
+                                    <option value="critical">Status: Critical</option>
+                                    <option value="past_record">Status: Past Record</option>
+                                </select>
+                            </div>
+                            <textarea id="prof-address" class="input" placeholder="Address"></textarea>
+                            <button type="submit" class="btn btn-primary w-full">Save Changes</button>
+                        </form>
                     </div>
-                    <div>
-                        <h4>Upload Medical Document (OCR)</h4>
-                        <input type="file" id="ocr-file" accept="image/*,.pdf">
-                        <button onclick="uploadMedia('ocr-file', '/ocr/analyze')">Analyze OCR</button>
-                    </div>
-                    <div>
-                        <h4>Upload Generic Media</h4>
-                        <input type="file" id="generic-file">
-                        <button onclick="uploadMedia('generic-file', '/media/upload/')">Upload</button>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="ph ph-files"></i> My Medical Records</h3>
+                            <button class="btn btn-sm btn-outline" onclick="app.fetchMedia()"><i class="ph ph-arrows-clockwise"></i></button>
+                        </div>
+                        <div class="media-upload-tools">
+                            <label class="btn btn-secondary btn-sm upload-btn">
+                                <i class="ph ph-microphone"></i> Audio
+                                <input type="file" id="audio-file" accept="audio/*" class="hidden" onchange="app.uploadMedia('audio-file', '/transcribe/')">
+                            </label>
+                            <label class="btn btn-secondary btn-sm upload-btn">
+                                <i class="ph ph-scan"></i> OCR Scan
+                                <input type="file" id="ocr-file" accept="image/*,.pdf" class="hidden" onchange="app.uploadMedia('ocr-file', '/ocr/analyze')">
+                            </label>
+                            <label class="btn btn-secondary btn-sm upload-btn">
+                                <i class="ph ph-upload-simple"></i> Other
+                                <input type="file" id="generic-file" class="hidden" onchange="app.uploadMedia('generic-file', '/media/upload/')">
+                            </label>
+                        </div>
+                        <div id="media-list" class="media-list">
+                            </div>
                     </div>
                 </div>
-                <button onclick="fetchMyMedia()" style="margin-top:10px;">Load My Media</button>
-                <ul id="media-list"></ul>
+
+                <div class="grid-col">
+                    <div class="card chat-card">
+                        <div class="card-header">
+                            <h3><i class="ph ph-robot"></i> AI Triage Assistant</h3>
+                            <span class="badge">Online</span>
+                        </div>
+                        <div id="chat-box" class="chat-box">
+                            <div class="msg system">Welcome! Describe your symptoms, or type SUMMARIZE to send a report to your doctor.</div>
+                        </div>
+                        <div class="chat-input-area">
+                            <label class="icon-btn tooltip" data-tip="Attach Report">
+                                <i class="ph ph-paperclip"></i>
+                                <input type="file" id="chat-file" accept="image/*,.pdf" class="hidden" onchange="app.uploadChatFile()">
+                            </label>
+                            <form id="chat-form" onsubmit="app.sendChatMessage(event)" class="w-full flex gap-2">
+                                <input type="text" id="chat-input" class="input w-full" placeholder="Type a message..." required autocomplete="off">
+                                <button type="submit" class="btn btn-primary icon-btn"><i class="ph ph-paper-plane-right"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </section>
 
-        <section id="doctor-section" class="hidden">
-            <h2>Doctor Dashboard</h2>
-            <div class="card">
-                <button onclick="fetchPatients()">Load Patients</button>
-                <ul id="patient-list"></ul>
-            </div>
+        <section id="doctor-view" class="view hidden">
+            <div class="dashboard-grid">
+                
+                <div class="grid-col">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="ph ph-users"></i> Patient Roster</h3>
+                            <button class="btn btn-sm btn-outline" onclick="app.fetchPatients()"><i class="ph ph-arrows-clockwise"></i> Refresh</button>
+                        </div>
+                        <div id="patient-list" class="list-group">
+                            </div>
+                    </div>
+                </div>
 
-            <div class="card" id="prescription-card" class="hidden">
-                <h3>Issue Prescription</h3>
-                <p><strong>Session ID:</strong> <span id="rx-session-id">None</span></p>
-                <form id="prescription-form">
-                    <textarea id="rx-notes" placeholder="Doctor Notes & Prescription" required></textarea>
-                    <input type="number" id="rx-followup" placeholder="Follow-up Days" value="3" required>
-                    <button type="submit">Generate Prescription PDF</button>
-                </form>
+                <div class="grid-col">
+                    <div class="card" id="doc-action-area">
+                        <div class="empty-state">
+                            <i class="ph ph-clipboard-text"></i>
+                            <p>Select a patient to view triage summaries and prescribe medication.</p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </section>
-    </div>
+    </main>
 
     <script src="app.js"></script>
 </body>
