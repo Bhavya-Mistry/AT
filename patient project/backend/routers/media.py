@@ -24,54 +24,90 @@ from security import get_current_user
 router = APIRouter(tags=["Media & Files"])
 
 
+def process_audio_in_background(
+    temp_path: str, unique_name: str, file_content_type: str, media_id: int
+):
+    db = next(get_db())
+    try:
+        # 1. Upload & Transcribe
+        drive_data = drive_service.upload_to_drive(
+            temp_path, unique_name, file_content_type
+        )
+        transcription_text = ai_service.transcribe_audio(temp_path)
+
+        # 2. Update DB
+        media_record = (
+            db.query(models.MedicalMedia)
+            .filter(models.MedicalMedia.id == media_id)
+            .first()
+        )
+        if media_record:
+            media_record.drive_file_id = drive_data["file_id"]
+            media_record.drive_view_link = (
+                f"http://127.0.0.1:8000/media/view/{media_id}"
+            )
+            media_record.transcript = transcription_text
+            db.commit()
+    except Exception as e:
+        print(f"Background Audio Error: {e}")
+        media_record = (
+            db.query(models.MedicalMedia)
+            .filter(models.MedicalMedia.id == media_id)
+            .first()
+        )
+        if media_record:
+            media_record.transcript = f"ERROR PROCESSING AUDIO: {str(e)}"
+            db.commit()
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        db.close()
+
+
 @router.post("/transcribe/")
 async def transcribe_audio_endpoint(
+    background_tasks: BackgroundTasks,  # <-- Inject BackgroundTasks
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: schemas.TokenData = Depends(get_current_user),
 ):
     secure_user_id = current_user.user_id
-
     file_ext = file.filename.split(".")[-1]
     unique_name = f"audio_{uuid.uuid4()}.{file_ext}"
     temp_path = f"temp_{unique_name}"
 
-    try:
-        with open(temp_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+    # 1. Save file locally instantly
+    with open(temp_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
-        drive_data = drive_service.upload_to_drive(
-            temp_path, unique_name, file.content_type
-        )
-        transcription_text = ai_service.transcribe_audio(temp_path)
+    # 2. Create placeholder in DB
+    new_media = models.MedicalMedia(
+        patient_id=secure_user_id,
+        file_name="Voice Note - " + unique_name[:8],
+        file_type="audio",
+        drive_file_id="processing...",
+        drive_view_link="",
+        transcript="Audio is being transcribed. Please wait...",  # Temporary
+    )
+    db.add(new_media)
+    db.commit()
+    db.refresh(new_media)
 
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    # 3. Queue the background task
+    background_tasks.add_task(
+        process_audio_in_background,
+        temp_path=temp_path,
+        unique_name=unique_name,
+        file_content_type=file.content_type,
+        media_id=new_media.id,
+    )
 
-        new_media = models.MedicalMedia(
-            patient_id=secure_user_id,
-            file_name="Voice Note - " + unique_name[:8],
-            file_type="audio",
-            drive_file_id=drive_data["file_id"],
-            drive_view_link="",
-            transcript=transcription_text,
-        )
-        db.add(new_media)
-        db.commit()
-
-        new_media.drive_view_link = f"http://127.0.0.1:8000/media/view/{new_media.id}"
-        db.commit()
-
-        return {
-            "transcript": transcription_text,
-            "media_id": new_media.id,
-            "file_url": new_media.drive_view_link,
-        }
-
-    except Exception as e:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
-        raise HTTPException(status_code=500, detail=str(e))
+    # 4. Instantly return
+    return {
+        "media_id": new_media.id,
+        "message": "Audio uploaded successfully! Transcription is running in the background.",
+        "status": "processing",
+    }
 
 
 @router.delete("/media/{media_id}")
