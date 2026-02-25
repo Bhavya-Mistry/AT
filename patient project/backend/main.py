@@ -25,6 +25,12 @@ from db import SessionLocal, engine
 import models
 import schemas
 
+
+from fastapi.security import OAuth2PasswordRequestForm
+from security import create_access_token
+
+from security import get_current_user
+
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
 
@@ -107,26 +113,39 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
-@app.post("/login", response_model=schemas.UserRead)
-def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
+@app.post("/login", response_model=schemas.Token)
+def login(
+    user_credentials: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    # Note: OAuth2PasswordRequestForm standardizes the field name to 'username'.
+    # We will map this 'username' to our 'email' column in the database.
     user = (
         db.query(models.User)
-        .filter(models.User.email == user_credentials.email)
+        .filter(models.User.email == user_credentials.username)
         .first()
     )
-    if not user:
+
+    if not user or not verify_password(user_credentials.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    if not verify_password(user_credentials.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+    # The user is legit! Let's mint a new token for them.
+    access_token = create_access_token(
+        data={"user_id": user.id, "email": user.email, "role": user.role}
+    )
 
-    return user
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.post("/users/{user_id}/profile/", response_model=schemas.ProfileRead)
+@app.post("/users/me/profile/", response_model=schemas.ProfileRead)
 def create_or_update_profile(
-    user_id: int, profile: schemas.ProfileCreate, db: Session = Depends(get_db)
+    profile: schemas.ProfileCreate,
+    db: Session = Depends(get_db),
+    current_user: schemas.TokenData = Depends(get_current_user),  # <-- THE BOUNCER
 ):
+    # We now get the user_id securely from the token, NOT the URL!
+    user_id = current_user.user_id
+
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -152,7 +171,14 @@ def create_or_update_profile(
 
 
 @app.post("/chat/")
-def chat_with_doctor(request: schemas.ChatRequest, db: Session = Depends(get_db)):
+def chat_with_doctor(
+    request: schemas.ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: schemas.TokenData = Depends(get_current_user),  # <-- THE BOUNCER
+):
+    # Override whatever the frontend sent with the secure token ID
+    secure_user_id = current_user.user_id
+
     history_record = (
         db.query(models.ChatHistory)
         .filter(models.ChatHistory.session_id == request.session_id)
@@ -162,13 +188,21 @@ def chat_with_doctor(request: schemas.ChatRequest, db: Session = Depends(get_db)
     if not history_record:
         messages = []
         new_record = models.ChatHistory(
-            patient_id=request.user_id, session_id=request.session_id, messages=messages
+            patient_id=secure_user_id,  # <-- Using the secure ID here
+            session_id=request.session_id,
+            messages=messages,
         )
         db.add(new_record)
         db.commit()
         db.refresh(new_record)
         history_record = new_record
     else:
+        # Security check: Make sure this chat actually belongs to the user requesting it!
+        if history_record.patient_id != secure_user_id:
+            raise HTTPException(
+                status_code=403, detail="Not authorized to access this chat"
+            )
+
         messages = history_record.messages if history_record.messages else []
 
     # Call AI
@@ -177,7 +211,6 @@ def chat_with_doctor(request: schemas.ChatRequest, db: Session = Depends(get_db)
     messages.append({"sender": "patient", "text": request.message})
     messages.append({"sender": "ai", "text": ai_response_text})
 
-    # Check for Summary (and Priority Score)
     is_summary_request = (
         "SUMMARIZE" in request.message.upper() or "SUMMARY" in request.message.upper()
     )
@@ -190,7 +223,6 @@ def chat_with_doctor(request: schemas.ChatRequest, db: Session = Depends(get_db)
 
     history_record.messages = messages
     flag_modified(history_record, "messages")
-
     db.commit()
 
     return {"response": ai_response_text}
@@ -662,29 +694,24 @@ async def upload_chat_attachment(
 @app.post("/media/upload/")
 async def upload_generic_media(
     file: UploadFile = File(...),
-    user_id: int = Form(...),
+    # REMOVED: user_id: int = Form(...)
     db: Session = Depends(get_db),
+    current_user: schemas.TokenData = Depends(get_current_user),  # <-- BOUNCER ADDED
 ):
-    """
-    Handles generic file uploads (Images, PDFs) from the 'Upload Record' button.
-    Uploads to Google Drive and saves reference in DB.
-    """
-    # 1. Create a temporary file to hold the upload
+    # Get the secure ID from the token
+    secure_user_id = current_user.user_id
+
     file_ext = file.filename.split(".")[-1]
     unique_name = f"upload_{uuid.uuid4()}.{file_ext}"
     temp_path = f"temp_{unique_name}"
 
     try:
-        # Save upload to local temp file
         with open(temp_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # 2. Upload to Google Drive using our new Service
-        # Determine MIME type based on extension
         mime_type = file.content_type
         drive_data = drive_service.upload_to_drive(temp_path, unique_name, mime_type)
 
-        # 3. Clean up local temp file
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
@@ -693,13 +720,12 @@ async def upload_generic_media(
                 status_code=500, detail="Failed to upload to Cloud Storage"
             )
 
-        # 4. Save to Database
         new_media = models.MedicalMedia(
-            patient_id=user_id,
-            file_name=file.filename,  # Keep original name for display
+            patient_id=secure_user_id,  # <-- USE SECURE ID HERE
+            file_name=file.filename,
             file_type="image" if "image" in mime_type else "document",
             drive_file_id=drive_data["file_id"],
-            drive_view_link="",  # Placeholder
+            drive_view_link="",
             transcript="User Uploaded Record",
         )
 
@@ -707,7 +733,6 @@ async def upload_generic_media(
         db.commit()
         db.refresh(new_media)
 
-        # 5. Generate Proxy Link
         new_media.drive_view_link = f"http://127.0.0.1:8000/media/view/{new_media.id}"
         db.commit()
 
@@ -718,7 +743,6 @@ async def upload_generic_media(
         }
 
     except Exception as e:
-        # Cleanup on error
         if os.path.exists(temp_path):
             os.remove(temp_path)
         print(f"Upload Error: {e}")
