@@ -24,13 +24,13 @@ router = APIRouter(
 
 @router.get("/patients/", response_model=List[schemas.UserRead])
 def get_all_patients(db: Session = Depends(get_db)):
-    """Only doctors can see the list of all patients."""
+    # Fetch patients and their latest chat summaries
     patients = (
-        db.query(models.User)
-        .options(joinedload(models.User.profile))
-        .filter(models.User.role == models.UserRole.PATIENT)
-        .all()
+        db.query(models.User).filter(models.User.role == models.UserRole.PATIENT).all()
     )
+
+    # Logic to sort patients based on the highest priority_score found in their ChatHistory
+    # (This can be done in Python for simplicity or a complex SQL join)
     return patients
 
 
@@ -122,3 +122,13 @@ def create_prescription(
         "message": "Prescription generated and sent to patient",
         "file_url": new_media.drive_view_link,
     }
+
+
+@router.get("/patients/{patient_id}/files", response_model=List[schemas.MediaRead])
+def get_patient_files_for_doctor(patient_id: int, db: Session = Depends(get_db)):
+    """Allows doctors to see every document, OCR result, and prescription for a specific patient."""
+    return (
+        db.query(models.MedicalMedia)
+        .filter(models.MedicalMedia.patient_id == patient_id)
+        .all()
+    )

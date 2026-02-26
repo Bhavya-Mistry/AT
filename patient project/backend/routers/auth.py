@@ -26,8 +26,9 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         hashed_password=hashed_pwd,
         role=models.UserRole.PATIENT,
-        has_signed_baa=user.has_signed_baa,
-        is_policy_accepted=user.is_policy_accepted,
+        has_signed_baa=user.has_signed_baa,  # <--- THIS IS CRITICAL
+        is_policy_accepted=user.is_policy_accepted,  # <--- THIS IS CRITICAL
+        is_2fa_enabled=False,  # We can default this to False until you build actual 2FA SMS logic
     )
 
     db.add(new_user)

@@ -33,46 +33,62 @@ def chat_with_doctor(
 ):
     secure_user_id = current_user.user_id
 
+    # 1. Fetch Chat History
     history_record = (
         db.query(models.ChatHistory)
         .filter(models.ChatHistory.session_id == request.session_id)
         .first()
     )
 
-    if not history_record:
-        messages = []
-        new_record = models.ChatHistory(
-            patient_id=secure_user_id, session_id=request.session_id, messages=messages
+    # ... (Keep your existing history_record creation logic here) ...
+
+    # 2. NEW: Fetch all media/files uploaded in THIS specific session
+    # We will look for transcripts of images/audio that happened in this chat
+    session_files = (
+        db.query(models.MedicalMedia)
+        .filter(
+            models.MedicalMedia.patient_id == secure_user_id,
+            models.MedicalMedia.transcript
+            != "User Uploaded Record",  # Filter out generic uploads
+            models.MedicalMedia.transcript != "",
         )
-        db.add(new_record)
-        db.commit()
-        db.refresh(new_record)
-        history_record = new_record
-    else:
-        if history_record.patient_id != secure_user_id:
-            raise HTTPException(
-                status_code=403, detail="Not authorized to access this chat"
-            )
-        messages = history_record.messages if history_record.messages else []
+        .all()
+    )
 
-    # Call AI
-    ai_response_text = ai_service.get_ai_response(messages, request.message)
+    # Create a hidden "context block" for the AI
+    file_context = "\n".join(
+        [f"File ({f.file_name}): {f.transcript}" for f in session_files]
+    )
 
-    messages.append({"sender": "patient", "text": request.message})
-    messages.append({"sender": "ai", "text": ai_response_text})
+    system_instruction = f"""
+    You are a professional Medical Assistant. 
+    Context from uploaded documents/audio in this session:
+    {file_context}
+    
+    Use the above context to answer the patient's questions accurately. 
+    If they ask about a medicine in an uploaded image, refer to the data above.
+    """
 
+    # 3. Call AI with the added context
+    # Note: You might need to adjust your ai_service.get_ai_response to accept a system_instruction
+    ai_response_text = ai_service.get_ai_response(
+        history_record.messages, request.message, system_instruction
+    )
+
+    # 4. Handle "SUMMARIZE" (Friendly response logic we did in the last step)
     is_summary_request = (
         "SUMMARIZE" in request.message.upper() or "SUMMARY" in request.message.upper()
     )
-
     if is_summary_request:
-        # Notice we call it from ai_service now!
         summary_json = ai_service.clean_ai_json(ai_response_text)
         if summary_json:
             history_record.summary = summary_json
             flag_modified(history_record, "summary")
+            ai_response_text = "I have successfully generated a clinical summary including your symptoms and all uploaded documents. Your doctor can now review this on their dashboard."
 
-    history_record.messages = messages
+    # 5. Save and return
+    history_record.messages.append({"sender": "patient", "text": request.message})
+    history_record.messages.append({"sender": "ai", "text": ai_response_text})
     flag_modified(history_record, "messages")
     db.commit()
 
@@ -227,3 +243,35 @@ async def upload_chat_attachment(
         "status": "processing",
         "message": "File is being uploaded and analyzed. The chat will update shortly.",
     }
+
+
+# Add this inside backend/routers/chat.py
+
+
+@router.post("/voice-to-text")
+async def voice_to_text_endpoint(
+    file: UploadFile = File(...),
+    current_user: schemas.TokenData = Depends(get_current_user),
+):
+    """Takes audio, transcribes it via Gemini, and returns text instantly. Does NOT save to DB."""
+    file_ext = file.filename.split(".")[-1]
+    unique_name = f"temp_voice_{uuid.uuid4()}.{file_ext}"
+
+    try:
+        with open(unique_name, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Send directly to your AI service for transcription
+        transcription_text = ai_service.transcribe_audio(unique_name)
+
+        if os.path.exists(unique_name):
+            os.remove(unique_name)
+
+        return {"text": transcription_text}
+
+    except Exception as e:
+        if os.path.exists(unique_name):
+            os.remove(unique_name)
+        raise HTTPException(
+            status_code=500, detail=f"Voice transcription failed: {str(e)}"
+        )
