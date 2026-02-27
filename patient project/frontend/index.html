@@ -3,972 +3,187 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+<meta http-equiv="X-Frame-Options" content="DENY" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<meta name="description" content="MediConnect — Secure Patient Portal for AI-Assisted Medical Consultations" />
 <title>MediConnect — Patient Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
-<style>
-  /* =============================================
-     RESET & BASE
-  ============================================= */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg:        #0a0d0f;
-    --surface:   #111518;
-    --card:      #161b1f;
-    --border:    #1f2a30;
-    --border-hi: #2a3a44;
-    --text:      #e4eaee;
-    --text-dim:  #7a909e;
-    --text-faint:#3d5060;
-    --accent:    #00c8a0;
-    --accent-dim:#006e58;
-    --accent-glow: rgba(0,200,160,.18);
-    --red:       #ff4d6d;
-    --amber:     #f5a623;
-    --blue:      #3b9eff;
-    --serif:     'DM Serif Display', Georgia, serif;
-    --sans:      'DM Sans', sans-serif;
-    --mono:      'DM Mono', monospace;
-    --radius:    10px;
-    --shadow:    0 4px 32px rgba(0,0,0,.6);
-    --transition: .22s cubic-bezier(.4,0,.2,1);
-  }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 15px;
-    line-height: 1.6;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* =============================================
-     LAYOUT SHELL
-  ============================================= */
-  .app { display: flex; height: 100vh; overflow: hidden; }
-
-  /* SIDEBAR */
-  .sidebar {
-    width: 240px;
-    min-width: 240px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    transition: width var(--transition);
-    z-index: 100;
-  }
-
-  .sidebar-logo {
-    padding: 28px 24px 20px;
-    border-bottom: 1px solid var(--border);
-  }
-  .sidebar-logo .logo-mark {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .logo-icon {
-    width: 34px; height: 34px;
-    background: var(--accent);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .logo-icon svg { width: 18px; height: 18px; fill: #0a0d0f; }
-  .logo-text {
-    font-family: var(--serif);
-    font-size: 17px;
-    color: var(--text);
-    letter-spacing: .01em;
-  }
-  .logo-text span { color: var(--accent); }
-
-  .sidebar-nav {
-    flex: 1;
-    padding: 16px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    overflow-y: auto;
-  }
-
-  .nav-section-label {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-    padding: 12px 12px 6px;
-    font-family: var(--mono);
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: background var(--transition), color var(--transition);
-    color: var(--text-dim);
-    font-size: 14px;
-    font-weight: 400;
-    user-select: none;
-    border: 1px solid transparent;
-  }
-  .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; fill: none; }
-  .nav-item:hover { background: var(--card); color: var(--text); }
-  .nav-item.active {
-    background: var(--accent-glow);
-    color: var(--accent);
-    border-color: var(--accent-dim);
-    font-weight: 500;
-  }
-  .nav-item .badge {
-    margin-left: auto;
-    background: var(--accent);
-    color: #000;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 20px;
-    font-family: var(--mono);
-  }
-
-  .sidebar-footer {
-    padding: 16px 12px;
-    border-top: 1px solid var(--border);
-  }
-  .user-pill {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background var(--transition);
-  }
-  .user-pill:hover { background: var(--card); }
-  .avatar {
-    width: 32px; height: 32px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent-dim), var(--accent));
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 600;
-    color: #000;
-    flex-shrink: 0;
-  }
-  .user-info { flex: 1; min-width: 0; }
-  .user-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .user-role { font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
-
-  /* MAIN CONTENT */
-  .main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* TOP BAR */
-  .topbar {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 0 28px;
-    height: 60px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    flex-shrink: 0;
-  }
-  .topbar-title {
-    font-family: var(--serif);
-    font-size: 20px;
-    color: var(--text);
-    flex: 1;
-  }
-  .topbar-title span { color: var(--text-dim); font-size: 13px; font-family: var(--sans); font-weight: 400; margin-left: 8px; }
-  .topbar-actions { display: flex; align-items: center; gap: 10px; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 16px; border-radius: 7px; border: none;
-    font-family: var(--sans); font-size: 13px; font-weight: 500;
-    cursor: pointer; transition: all var(--transition);
-  }
-  .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; flex-shrink: 0; }
-  .btn-ghost {
-    background: transparent; color: var(--text-dim);
-    border: 1px solid var(--border);
-  }
-  .btn-ghost:hover { background: var(--card); color: var(--text); border-color: var(--border-hi); }
-  .btn-primary {
-    background: var(--accent); color: #000;
-  }
-  .btn-primary:hover { background: #00e0b2; box-shadow: 0 0 20px var(--accent-glow); }
-  .btn-danger { background: var(--red); color: #fff; }
-  .btn-danger:hover { background: #ff6b84; }
-
-  /* CONTENT AREA */
-  .content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 28px;
-  }
-  .content::-webkit-scrollbar { width: 6px; }
-  .content::-webkit-scrollbar-track { background: transparent; }
-  .content::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 4px; }
-
-  /* SCREENS */
-  .screen { display: none; animation: fadeUp .3s ease both; }
-  .screen.active { display: block; }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-
-  /* =============================================
-     AUTH SCREEN
-  ============================================= */
-  .auth-wrap {
-    position: fixed; inset: 0;
-    background: var(--bg);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 999;
-    padding: 24px;
-  }
-  .auth-card {
-    width: 100%; max-width: 420px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 40px 36px;
-    box-shadow: var(--shadow);
-  }
-  .auth-logo {
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 32px;
-  }
-  .auth-logo .logo-icon { width: 42px; height: 42px; border-radius: 10px; }
-  .auth-logo .logo-icon svg { width: 22px; height: 22px; }
-  .auth-logo-text { font-family: var(--serif); font-size: 22px; }
-  .auth-logo-text span { color: var(--accent); }
-  .auth-heading {
-    font-family: var(--serif);
-    font-size: 26px; line-height: 1.2;
-    margin-bottom: 6px;
-  }
-  .auth-sub { font-size: 14px; color: var(--text-dim); margin-bottom: 28px; }
-
-  .form-group { margin-bottom: 18px; }
-  .form-label {
-    display: block;
-    font-size: 12px; font-weight: 500;
-    letter-spacing: .06em; text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 7px;
-    font-family: var(--mono);
-  }
-  .form-input {
-    width: 100%;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 11px 14px;
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 14px;
-    outline: none;
-    transition: border-color var(--transition), box-shadow var(--transition);
-  }
-  .form-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-  .form-input::placeholder { color: var(--text-faint); }
-  .form-check {
-    display: flex; align-items: flex-start; gap: 10px;
-    font-size: 13px; color: var(--text-dim); cursor: pointer;
-    margin-bottom: 14px;
-  }
-  .form-check input[type=checkbox] {
-    width: 16px; height: 16px; flex-shrink: 0;
-    accent-color: var(--accent); margin-top: 2px;
-  }
-  .auth-switch {
-    text-align: center;
-    font-size: 13px; color: var(--text-dim);
-    margin-top: 20px;
-  }
-  .auth-switch a { color: var(--accent); cursor: pointer; text-decoration: none; }
-  .auth-switch a:hover { text-decoration: underline; }
-  .auth-error {
-    background: rgba(255,77,109,.1);
-    border: 1px solid rgba(255,77,109,.3);
-    border-radius: 7px;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: var(--red);
-    margin-bottom: 16px;
-    display: none;
-  }
-  .auth-error.show { display: block; }
-
-  /* =============================================
-     DASHBOARD
-  ============================================= */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
-    margin-bottom: 28px;
-  }
-  .stat-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px 22px;
-    position: relative;
-    overflow: hidden;
-    transition: border-color var(--transition);
-  }
-  .stat-card:hover { border-color: var(--border-hi); }
-  .stat-card::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0;
-    height: 2px;
-    background: var(--accent-bar, var(--accent));
-    opacity: .7;
-  }
-  .stat-label {
-    font-size: 11px; font-weight: 500;
-    letter-spacing: .1em; text-transform: uppercase;
-    color: var(--text-dim); font-family: var(--mono);
-    margin-bottom: 10px;
-  }
-  .stat-value {
-    font-family: var(--serif);
-    font-size: 32px; color: var(--text);
-    line-height: 1;
-  }
-  .stat-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
-
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
-
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 22px 24px;
-  }
-  .card-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 18px;
-  }
-  .card-title {
-    font-family: var(--serif);
-    font-size: 16px; color: var(--text);
-  }
-  .card-action { font-size: 12px; color: var(--accent); cursor: pointer; }
-  .card-action:hover { text-decoration: underline; }
-
-  /* =============================================
-     CHAT SCREEN
-  ============================================= */
-  .chat-layout {
-    display: flex;
-    height: calc(100vh - 60px);
-    overflow: hidden;
-  }
-  .chat-sessions {
-    width: 260px; min-width: 260px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex; flex-direction: column;
-  }
-  .chat-sessions-header {
-    padding: 16px 16px 10px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .chat-sessions-title { font-size: 13px; font-weight: 600; color: var(--text); }
-  .session-list { flex: 1; overflow-y: auto; padding: 8px; }
-  .session-item {
-    padding: 12px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background var(--transition);
-    border: 1px solid transparent;
-    margin-bottom: 2px;
-  }
-  .session-item:hover { background: var(--card); }
-  .session-item.active { background: var(--accent-glow); border-color: var(--accent-dim); }
-  .session-id { font-family: var(--mono); font-size: 11px; color: var(--accent); margin-bottom: 3px; }
-  .session-preview { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .session-date { font-size: 10px; color: var(--text-faint); margin-top: 4px; font-family: var(--mono); }
-
-  .chat-main {
-    flex: 1; display: flex; flex-direction: column; overflow: hidden;
-  }
-  .chat-topbar {
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 12px;
-    background: var(--surface);
-    flex-shrink: 0;
-  }
-  .chat-session-info { flex: 1; }
-  .chat-session-name { font-size: 14px; font-weight: 500; }
-  .chat-session-meta { font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
-
-  .chat-messages {
-    flex: 1; overflow-y: auto;
-    padding: 24px 28px;
-    display: flex; flex-direction: column; gap: 16px;
-  }
-  .chat-messages::-webkit-scrollbar { width: 4px; }
-  .chat-messages::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 4px; }
-
-  .msg {
-    display: flex;
-    gap: 12px;
-    max-width: 72%;
-    animation: fadeUp .2s ease both;
-  }
-  .msg.patient { align-self: flex-end; flex-direction: row-reverse; }
-  .msg.ai, .msg.system { align-self: flex-start; }
-
-  .msg-avatar {
-    width: 30px; height: 30px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 600; flex-shrink: 0;
-  }
-  .msg.patient .msg-avatar { background: var(--accent-dim); color: var(--accent); }
-  .msg.ai .msg-avatar { background: var(--border-hi); color: var(--text-dim); }
-  .msg.system .msg-avatar { background: rgba(245,166,35,.15); color: var(--amber); }
-
-  .msg-bubble {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 16px;
-    font-size: 14px;
-    line-height: 1.6;
-  }
-  .msg.patient .msg-bubble {
-    background: var(--accent-glow);
-    border-color: var(--accent-dim);
-    color: var(--text);
-  }
-  .msg.system .msg-bubble {
-    background: rgba(245,166,35,.06);
-    border-color: rgba(245,166,35,.2);
-    color: var(--text-dim);
-    font-size: 13px;
-    font-style: italic;
-  }
-  .msg-file-tag {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: var(--border);
-    padding: 4px 10px; border-radius: 5px;
-    font-size: 11px; color: var(--text-dim);
-    margin-top: 6px; font-family: var(--mono);
-  }
-  .msg-time { font-size: 10px; color: var(--text-faint); margin-top: 5px; font-family: var(--mono); }
-
-  .chat-input-area {
-    padding: 16px 24px;
-    border-top: 1px solid var(--border);
-    background: var(--surface);
-    flex-shrink: 0;
-  }
-  .chat-input-box {
-    display: flex; align-items: flex-end; gap: 10px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 10px 14px;
-    transition: border-color var(--transition);
-  }
-  .chat-input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-  .chat-textarea {
-    flex: 1; background: transparent; border: none; outline: none;
-    color: var(--text); font-family: var(--sans); font-size: 14px;
-    resize: none; line-height: 1.5; max-height: 120px;
-    overflow-y: auto;
-  }
-  .chat-textarea::placeholder { color: var(--text-faint); }
-  .chat-input-actions { display: flex; gap: 6px; flex-shrink: 0; }
-  .icon-btn {
-    width: 32px; height: 32px; border-radius: 7px;
-    border: 1px solid var(--border); background: transparent;
-    color: var(--text-dim); cursor: pointer; display: flex;
-    align-items: center; justify-content: center;
-    transition: all var(--transition);
-  }
-  .icon-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; }
-  .icon-btn:hover { background: var(--border); color: var(--text); }
-  .icon-btn.send { background: var(--accent); border-color: var(--accent); color: #000; }
-  .icon-btn.send:hover { background: #00e0b2; }
-
-  .chat-hints {
-    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
-  }
-  .hint-chip {
-    font-size: 11px; padding: 4px 10px; border-radius: 20px;
-    border: 1px solid var(--border); color: var(--text-dim);
-    cursor: pointer; background: transparent;
-    font-family: var(--mono);
-    transition: all var(--transition);
-  }
-  .hint-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
-
-  /* =============================================
-     FILES SCREEN
-  ============================================= */
-  .files-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
-  }
-  .file-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 18px 20px;
-    cursor: pointer; transition: all var(--transition);
-    position: relative;
-  }
-  .file-card:hover { border-color: var(--accent-dim); box-shadow: 0 4px 20px var(--accent-glow); }
-  .file-icon {
-    width: 40px; height: 40px; border-radius: 9px; margin-bottom: 12px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .file-icon.pdf { background: rgba(255,77,109,.12); }
-  .file-icon.image { background: rgba(0,200,160,.12); }
-  .file-icon.audio { background: rgba(59,158,255,.12); }
-  .file-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
-  .file-icon.pdf svg { color: var(--red); }
-  .file-icon.image svg { color: var(--accent); }
-  .file-icon.audio svg { color: var(--blue); }
-  .file-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; word-break: break-all; }
-  .file-meta { font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
-  .file-transcript {
-    font-size: 12px; color: var(--text-dim);
-    margin-top: 10px; padding-top: 10px;
-    border-top: 1px solid var(--border);
-    line-height: 1.5;
-    display: -webkit-box; -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical; overflow: hidden;
-  }
-  .file-card-actions {
-    position: absolute; top: 12px; right: 12px;
-    display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition);
-  }
-  .file-card:hover .file-card-actions { opacity: 1; }
-  .file-delete-btn {
-    width: 26px; height: 26px; border-radius: 6px;
-    background: rgba(255,77,109,.1); border: 1px solid rgba(255,77,109,.2);
-    color: var(--red); cursor: pointer; display: flex;
-    align-items: center; justify-content: center;
-    transition: all var(--transition);
-  }
-  .file-delete-btn:hover { background: var(--red); color: #fff; }
-  .file-delete-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; }
-
-  /* Upload zone */
-  .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 36px;
-    text-align: center;
-    cursor: pointer;
-    transition: all var(--transition);
-    margin-bottom: 24px;
-  }
-  .upload-zone:hover, .upload-zone.drag-over {
-    border-color: var(--accent);
-    background: var(--accent-glow);
-  }
-  .upload-zone-icon { font-size: 32px; margin-bottom: 10px; opacity: .5; }
-  .upload-zone-label { font-size: 14px; color: var(--text-dim); }
-  .upload-zone-sub { font-size: 12px; color: var(--text-faint); margin-top: 4px; font-family: var(--mono); }
-
-  /* =============================================
-     PROFILE
-  ============================================= */
-  .profile-header {
-    display: flex; align-items: center; gap: 20px;
-    margin-bottom: 28px;
-  }
-  .profile-avatar {
-    width: 72px; height: 72px; border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent-dim), var(--accent));
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--serif); font-size: 28px; color: #000;
-  }
-  .profile-info { flex: 1; }
-  .profile-name { font-family: var(--serif); font-size: 22px; margin-bottom: 4px; }
-  .profile-email { font-size: 13px; color: var(--text-dim); font-family: var(--mono); }
-  .profile-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    background: var(--accent-glow); border: 1px solid var(--accent-dim);
-    color: var(--accent); padding: 3px 10px; border-radius: 20px;
-    font-size: 11px; font-family: var(--mono); margin-top: 6px;
-  }
-  .profile-badge span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
-
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
-
-  .form-select {
-    width: 100%;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 11px 14px;
-    color: var(--text);
-    font-family: var(--sans); font-size: 14px;
-    outline: none;
-    transition: border-color var(--transition);
-    appearance: none;
-    cursor: pointer;
-  }
-  .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-
-  /* =============================================
-     TOAST
-  ============================================= */
-  #toast-container {
-    position: fixed; bottom: 24px; right: 24px;
-    display: flex; flex-direction: column; gap: 10px;
-    z-index: 9999;
-  }
-  .toast {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 10px; padding: 14px 18px;
-    min-width: 240px; max-width: 340px;
-    font-size: 13px; color: var(--text);
-    box-shadow: var(--shadow);
-    display: flex; align-items: center; gap: 10px;
-    animation: toastIn .3s ease both;
-  }
-  .toast.success { border-left: 3px solid var(--accent); }
-  .toast.error   { border-left: 3px solid var(--red); }
-  .toast.info    { border-left: 3px solid var(--blue); }
-  .toast-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .toast.success .toast-dot { background: var(--accent); }
-  .toast.error   .toast-dot { background: var(--red); }
-  .toast.info    .toast-dot { background: var(--blue); }
-
-  @keyframes toastIn {
-    from { opacity: 0; transform: translateX(20px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-
-  /* =============================================
-     MODAL
-  ============================================= */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.7);
-    backdrop-filter: blur(4px);
-    z-index: 900;
-    display: flex; align-items: center; justify-content: center;
-    padding: 24px;
-    opacity: 0; pointer-events: none;
-    transition: opacity .2s;
-  }
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 32px;
-    width: 100%; max-width: 480px;
-    box-shadow: var(--shadow);
-    transform: translateY(16px);
-    transition: transform .25s ease;
-  }
-  .modal-overlay.open .modal { transform: translateY(0); }
-  .modal-title { font-family: var(--serif); font-size: 20px; margin-bottom: 6px; }
-  .modal-sub { font-size: 13px; color: var(--text-dim); margin-bottom: 22px; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-
-  /* =============================================
-     PRIORITY BADGE
-  ============================================= */
-  .priority {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 3px 8px; border-radius: 5px;
-    font-size: 11px; font-weight: 600; font-family: var(--mono);
-  }
-  .priority.low    { background: rgba(0,200,160,.1);  color: var(--accent); }
-  .priority.medium { background: rgba(245,166,35,.1); color: var(--amber); }
-  .priority.high   { background: rgba(255,77,109,.1); color: var(--red);   }
-
-  /* =============================================
-     MISC
-  ============================================= */
-  .section-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 20px;
-  }
-  .section-title {
-    font-family: var(--serif); font-size: 22px; color: var(--text);
-  }
-  .section-sub { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
-
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--text-dim);
-  }
-  .empty-state-icon { font-size: 40px; margin-bottom: 12px; opacity: .4; }
-  .empty-state-title { font-family: var(--serif); font-size: 18px; margin-bottom: 6px; color: var(--text); }
-  .empty-state-sub { font-size: 13px; }
-
-  .divider { height: 1px; background: var(--border); margin: 20px 0; }
-
-  .processing-indicator {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 12px; color: var(--amber); font-family: var(--mono);
-    padding: 8px 14px;
-    background: rgba(245,166,35,.06);
-    border: 1px solid rgba(245,166,35,.15);
-    border-radius: 7px;
-    margin-bottom: 12px;
-  }
-  .pulse {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--amber);
-    animation: pulseAnim 1.2s ease-in-out infinite;
-  }
-  @keyframes pulseAnim {
-    0%,100% { opacity: 1; transform: scale(1); }
-    50% { opacity: .4; transform: scale(0.7); }
-  }
-
-  /* Summary card in chat */
-  .summary-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px 18px;
-    margin-top: 16px;
-    font-size: 13px;
-  }
-  .summary-card-title {
-    font-family: var(--mono); font-size: 10px;
-    letter-spacing: .1em; text-transform: uppercase;
-    color: var(--accent); margin-bottom: 12px;
-  }
-  .summary-row { display: flex; gap: 8px; margin-bottom: 6px; }
-  .summary-key { color: var(--text-dim); min-width: 120px; font-family: var(--mono); font-size: 11px; }
-  .summary-val { color: var(--text); }
-
-  /* Loading spinner */
-  .spinner {
-    width: 20px; height: 20px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .6s linear infinite;
-    flex-shrink: 0;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* File input hidden */
-  input[type=file] { display: none; }
-
-  /* Scrollbar for session list */
-  .session-list::-webkit-scrollbar { width: 4px; }
-  .session-list::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 4px; }
-
-</style>
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-<!-- ============================
-     AUTH SCREEN
-============================ -->
-<div class="auth-wrap" id="authWrap">
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<!-- ===== AUTH ===== -->
+<div class="auth-wrap" id="authWrap" role="dialog" aria-label="Authentication">
   <div class="auth-card">
     <div class="auth-logo">
-      <div class="logo-icon">
+      <div class="logo-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><path d="M12 2L12 22M7 12L17 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
       </div>
       <div class="auth-logo-text">Medi<span>Connect</span></div>
     </div>
-
-    <!-- LOGIN FORM -->
     <div id="loginForm">
-      <div class="auth-heading">Welcome back</div>
-      <div class="auth-sub">Sign in to your patient portal</div>
-      <div class="auth-error" id="loginError"></div>
-      <div class="form-group">
-        <label class="form-label">Email address</label>
-        <input type="email" class="form-input" id="loginEmail" placeholder="patient@example.com" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" class="form-input" id="loginPassword" placeholder="••••••••" />
-      </div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="handleLogin()">
-        Sign in
-      </button>
+      <h1 class="auth-heading">Welcome back</h1>
+      <p class="auth-sub">Sign in to your patient portal</p>
+      <div class="auth-error" id="loginError" role="alert"></div>
+      <form id="loginFormEl" autocomplete="on" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="loginEmail">Email address</label>
+          <input type="email" class="form-input" id="loginEmail" placeholder="patient@example.com" required autocomplete="email" aria-required="true" />
+          <div class="form-hint" id="loginEmailHint">Please enter a valid email address</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword">Password</label>
+          <input type="password" class="form-input" id="loginPassword" placeholder="••••••••" required autocomplete="current-password" aria-required="true" minlength="6" />
+          <div class="form-hint" id="loginPasswordHint">Password must be at least 6 characters</div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" id="loginBtn">
+          Sign in
+        </button>
+      </form>
       <div class="auth-switch">
-        Don't have an account? <a onclick="toggleAuthMode('register')">Create one</a>
+        Don't have an account? <a href="#" id="showRegister">Create one</a>
       </div>
     </div>
-
-    <!-- REGISTER FORM -->
     <div id="registerForm" style="display:none">
-      <div class="auth-heading">Create account</div>
-      <div class="auth-sub">Join MediConnect patient portal</div>
-      <div class="auth-error" id="registerError"></div>
-      <div class="form-group">
-        <label class="form-label">Email address</label>
-        <input type="email" class="form-input" id="regEmail" placeholder="patient@example.com" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" class="form-input" id="regPassword" placeholder="Choose a password" />
-      </div>
-      <label class="form-check">
-        <input type="checkbox" id="regPolicy" />
-        <span>I agree to the <a style="color:var(--accent)">Terms of Service</a> and Privacy Policy</span>
-      </label>
-      <label class="form-check">
-        <input type="checkbox" id="regBaa" />
-        <span>I have reviewed and sign the Business Associate Agreement (BAA)</span>
-      </label>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;" onclick="handleRegister()">
-        Create account
-      </button>
+      <h1 class="auth-heading">Create account</h1>
+      <p class="auth-sub">Join MediConnect patient portal</p>
+      <div class="auth-error" id="registerError" role="alert"></div>
+      <form id="registerFormEl" autocomplete="on" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="regEmail">Email address</label>
+          <input type="email" class="form-input" id="regEmail" placeholder="patient@example.com" required autocomplete="email" aria-required="true" />
+          <div class="form-hint" id="regEmailHint">Please enter a valid email address</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regPassword">Password</label>
+          <input type="password" class="form-input" id="regPassword" placeholder="Choose a password" required autocomplete="new-password" aria-required="true" minlength="6" />
+          <div class="form-hint" id="regPasswordHint">Password must be at least 6 characters</div>
+        </div>
+        <label class="form-check">
+          <input type="checkbox" id="regPolicy" required />
+          <span>I agree to the <a href="#">Terms of Service</a> and Privacy Policy</span>
+        </label>
+        <label class="form-check">
+          <input type="checkbox" id="regBaa" />
+          <span>I have reviewed and sign the Business Associate Agreement (BAA)</span>
+        </label>
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" id="registerBtn">
+          Create account
+        </button>
+      </form>
       <div class="auth-switch">
-        Already have an account? <a onclick="toggleAuthMode('login')">Sign in</a>
+        Already have an account? <a href="#" id="showLogin">Sign in</a>
       </div>
     </div>
-
   </div>
 </div>
 
-<!-- ============================
-     MAIN APP
-============================ -->
+<!-- ===== APP ===== -->
 <div class="app" id="mainApp" style="display:none">
-
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
     <div class="sidebar-logo">
       <div class="logo-mark">
-        <div class="logo-icon">
+        <div class="logo-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 2L12 22M7 12L17 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
         </div>
         <div class="logo-text">Medi<span>Connect</span></div>
       </div>
     </div>
-
     <nav class="sidebar-nav">
       <div class="nav-section-label">Portal</div>
-      <div class="nav-item active" onclick="showScreen('dashboard')" data-screen="dashboard">
+      <button class="nav-item" aria-current="page" data-screen="dashboard" type="button">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Overview
-      </div>
-      <div class="nav-item" onclick="showScreen('chat')" data-screen="chat">
+      </button>
+      <button class="nav-item" data-screen="chat" type="button">
         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
         AI Consultation
         <span class="badge" id="chatBadge" style="display:none">1</span>
-      </div>
-      <div class="nav-item" onclick="showScreen('files')" data-screen="files">
+      </button>
+      <button class="nav-item" data-screen="files" type="button">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
         Medical Files
-      </div>
-
+      </button>
       <div class="nav-section-label" style="margin-top:8px">Account</div>
-      <div class="nav-item" onclick="showScreen('profile')" data-screen="profile">
+      <button class="nav-item" data-screen="profile" type="button">
         <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         Profile
-      </div>
+      </button>
     </nav>
-
     <div class="sidebar-footer">
-      <div class="user-pill" onclick="handleLogout()">
+      <div class="user-pill" id="logoutPill" role="button" tabindex="0" aria-label="Sign out">
         <div class="avatar" id="sidebarAvatar">P</div>
         <div class="user-info">
           <div class="user-name" id="sidebarEmail">patient@example.com</div>
-          <div class="user-role">Patient</div>
+          <div class="user-role">Patient · Sign out</div>
         </div>
       </div>
     </div>
   </aside>
 
-  <!-- MAIN -->
-  <div class="main">
-
-    <!-- TOP BAR -->
+  <div class="main" id="main-content">
     <header class="topbar">
+      <button class="hamburger" id="hamburgerBtn" type="button" aria-label="Open menu">
+        <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div class="topbar-title" id="topbarTitle">
-        Overview
-        <span id="topbarSub">Your health at a glance</span>
+        Overview <span>Your health at a glance</span>
       </div>
       <div class="topbar-actions" id="topbarActions">
-        <button class="btn btn-ghost" onclick="showScreen('chat')">
+        <button class="btn btn-ghost" data-action="new-consult" type="button">
           <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-          New Consultation
+          <span class="btn-label">New Consultation</span>
         </button>
-        <button class="btn btn-primary" onclick="openUploadModal()">
+        <button class="btn btn-primary" data-action="upload-modal" type="button">
           <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Upload File
+          <span class="btn-label">Upload File</span>
         </button>
       </div>
     </header>
 
-    <!-- CONTENT WRAPPER -->
+    <div class="conn-banner" id="connBanner" role="status" aria-live="polite"></div>
+
     <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
 
       <!-- DASHBOARD -->
       <div class="content screen active" id="screen-dashboard">
-        <div class="stats-row">
-          <div class="stat-card" style="--accent-bar: var(--accent)">
+        <div class="stats-row" role="list" aria-label="Statistics">
+          <div class="stat-card" role="listitem" style="--accent-bar:var(--accent)">
             <div class="stat-label">Total Sessions</div>
             <div class="stat-value" id="statSessions">0</div>
             <div class="stat-sub">AI consultations</div>
           </div>
-          <div class="stat-card" style="--accent-bar: var(--blue)">
+          <div class="stat-card" role="listitem" style="--accent-bar:var(--blue)">
             <div class="stat-label">Medical Files</div>
             <div class="stat-value" id="statFiles">0</div>
             <div class="stat-sub">Uploaded records</div>
           </div>
-          <div class="stat-card" style="--accent-bar: var(--amber)">
+          <div class="stat-card" role="listitem" style="--accent-bar:var(--amber)">
             <div class="stat-label">Pending Reviews</div>
-            <div class="stat-value" id="statPending">—</div>
+            <div class="stat-value" id="statPending">&mdash;</div>
             <div class="stat-sub">Awaiting doctor</div>
           </div>
-          <div class="stat-card" style="--accent-bar: var(--red)">
+          <div class="stat-card" role="listitem" style="--accent-bar:var(--red)">
             <div class="stat-label">Avg Priority</div>
-            <div class="stat-value" id="statPriority">—</div>
+            <div class="stat-value" id="statPriority">&mdash;</div>
             <div class="stat-sub">Triage score</div>
           </div>
         </div>
-
         <div class="two-col">
           <div class="card">
             <div class="card-header">
-              <div class="card-title">Recent Consultations</div>
-              <span class="card-action" onclick="showScreen('chat')">View all</span>
+              <h2 class="card-title">Recent Consultations</h2>
+              <button class="card-action" data-action="go-chat" type="button">View all</button>
             </div>
             <div id="recentChats">
               <div class="empty-state" style="padding:30px 20px">
-                <div class="empty-state-icon">💬</div>
+                <div class="empty-state-icon" aria-hidden="true">💬</div>
                 <div class="empty-state-title">No consultations yet</div>
                 <div class="empty-state-sub">Start a conversation with the AI assistant</div>
               </div>
@@ -976,12 +191,12 @@
           </div>
           <div class="card">
             <div class="card-header">
-              <div class="card-title">Recent Files</div>
-              <span class="card-action" onclick="showScreen('files')">View all</span>
+              <h2 class="card-title">Recent Files</h2>
+              <button class="card-action" data-action="go-files" type="button">View all</button>
             </div>
             <div id="recentFiles">
               <div class="empty-state" style="padding:30px 20px">
-                <div class="empty-state-icon">📄</div>
+                <div class="empty-state-icon" aria-hidden="true">📄</div>
                 <div class="empty-state-title">No files uploaded</div>
                 <div class="empty-state-sub">Upload medical records, prescriptions</div>
               </div>
@@ -993,58 +208,60 @@
       <!-- CHAT -->
       <div class="screen" id="screen-chat" style="display:none;flex:1;overflow:hidden;flex-direction:column">
         <div class="chat-layout">
-          <!-- Sessions panel -->
-          <div class="chat-sessions">
+          <div class="chat-sessions" id="chatSessionsPanel">
             <div class="chat-sessions-header">
               <span class="chat-sessions-title">Sessions</span>
-              <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" onclick="createNewSession()">+ New</button>
+              <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-action="new-session" type="button">+ New</button>
             </div>
-            <div class="session-list" id="sessionList">
+            <div class="session-list" id="sessionList" role="listbox" aria-label="Chat sessions">
               <div class="empty-state" style="padding:30px 16px">
-                <div class="empty-state-sub">No sessions yet</div>
+                <div class="empty-state-sub">No sessions yet. Click "+ New" to start.</div>
               </div>
             </div>
           </div>
-
-          <!-- Chat area -->
           <div class="chat-main">
             <div class="chat-topbar">
+              <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px;display:none" id="mobileSessionsBtn" data-action="toggle-sessions" type="button">☰ Sessions</button>
               <div class="chat-session-info">
                 <div class="chat-session-name" id="currentSessionName">Select a session</div>
                 <div class="chat-session-meta" id="currentSessionMeta">No session active</div>
               </div>
-              <button class="btn btn-ghost" style="font-size:12px" onclick="requestSummary()" id="summaryBtn" disabled>
+              <button class="btn btn-ghost" style="font-size:12px" data-action="get-summary" id="summaryBtn" disabled type="button">
                 <svg viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                Get Summary
+                Summary
               </button>
             </div>
-
-            <div class="chat-messages" id="chatMessages">
+            <div class="chat-messages" id="chatMessages" role="log" aria-label="Chat messages" aria-live="polite">
               <div class="empty-state">
-                <div class="empty-state-icon">🩺</div>
+                <div class="empty-state-icon" aria-hidden="true">🩺</div>
                 <div class="empty-state-title">Medical AI Assistant</div>
                 <div class="empty-state-sub">Start a new session or select an existing one to begin</div>
               </div>
             </div>
-
             <div class="chat-input-area">
               <div class="chat-input-box">
-                <textarea class="chat-textarea" id="chatInput" rows="1" placeholder="Describe your symptoms…" onkeydown="handleChatKey(event)" oninput="autoResize(this)"></textarea>
+                <label for="chatInput" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Message</label>
+                <textarea class="chat-textarea" id="chatInput" rows="1" placeholder="Describe your symptoms…" aria-label="Type your message"></textarea>
                 <div class="chat-input-actions">
-                  <label class="icon-btn" title="Attach file" for="chatFileInput">
+                  <label class="icon-btn" title="Attach file" for="chatFileInput" tabindex="0" role="button" aria-label="Attach file">
                     <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
                   </label>
-                  <input type="file" id="chatFileInput" accept="image/*,.pdf" onchange="handleChatFileUpload(this)">
-                  <button class="icon-btn send" title="Send" onclick="sendChatMessage()">
+                  <input type="file" id="chatFileInput" accept="image/*,.pdf">
+                  
+                  <button class="icon-btn mic" title="Hold to speak" type="button" id="micBtn" aria-label="Hold to record voice">
+                    <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2m7 13v-4m-4 0h8"/></svg>
+                  </button>
+                
+                  <button class="icon-btn send" title="Send message" data-action="send-chat" type="button" id="sendBtn" aria-label="Send message">
                     <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
                   </button>
                 </div>
               </div>
-              <div class="chat-hints">
-                <button class="hint-chip" onclick="insertHint('I have a headache and fever')">Headache & fever</button>
-                <button class="hint-chip" onclick="insertHint('Chest pain when breathing')">Chest pain</button>
-                <button class="hint-chip" onclick="insertHint('Please SUMMARIZE our conversation')">Summarize</button>
-                <button class="hint-chip" onclick="insertHint('I need to check my medications')">Medications</button>
+              <div class="chat-hints" role="list" aria-label="Suggested prompts">
+                <button class="hint-chip" data-hint="I have a headache and fever" type="button" role="listitem">Headache &amp; fever</button>
+                <button class="hint-chip" data-hint="Chest pain when breathing" type="button" role="listitem">Chest pain</button>
+                <button class="hint-chip" data-hint="Please SUMMARIZE our conversation" type="button" role="listitem">Summarize</button>
+                <button class="hint-chip" data-hint="I need to check my medications" type="button" role="listitem">Medications</button>
               </div>
             </div>
           </div>
@@ -1055,31 +272,29 @@
       <div class="content screen" id="screen-files" style="display:none">
         <div class="section-header">
           <div>
-            <div class="section-title">Medical Files</div>
-            <div class="section-sub">All your uploaded records, scans, and prescriptions</div>
+            <h2 class="section-title">Medical Files</h2>
+            <p class="section-sub">All your uploaded records, scans, and prescriptions</p>
           </div>
-          <div style="display:flex;gap:10px">
-            <label class="btn btn-ghost" for="ocrInput">
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <label class="btn btn-ghost" for="ocrInput" tabindex="0" role="button">
               <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
-              Analyze Document (OCR)
+              <span class="btn-label">Analyze (OCR)</span>
             </label>
-            <input type="file" id="ocrInput" accept="image/*,.pdf" onchange="handleOcrUpload(this)">
-            <label class="btn btn-primary" for="genericUploadInput">
+            <input type="file" id="ocrInput" accept="image/*,.pdf">
+            <label class="btn btn-primary" for="genericUploadInput" tabindex="0" role="button">
               <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Upload File
+              <span class="btn-label">Upload File</span>
             </label>
-            <input type="file" id="genericUploadInput" onchange="handleGenericUpload(this)">
+            <input type="file" id="genericUploadInput">
           </div>
         </div>
-
-        <div id="processingBanner" style="display:none" class="processing-indicator">
+        <div id="processingBanner" class="processing-indicator" role="status" aria-live="polite">
           <div class="pulse"></div>
           File is being analyzed in the background. Results will appear shortly.
         </div>
-
-        <div class="files-grid" id="filesGrid">
+        <div class="files-grid" id="filesGrid" role="list" aria-label="Uploaded files">
           <div class="empty-state" style="grid-column:1/-1;padding:60px 20px">
-            <div class="empty-state-icon">📂</div>
+            <div class="empty-state-icon" aria-hidden="true">📂</div>
             <div class="empty-state-title">No files yet</div>
             <div class="empty-state-sub">Upload your medical records, prescriptions, or scans</div>
           </div>
@@ -1090,726 +305,99 @@
       <div class="content screen" id="screen-profile" style="display:none">
         <div class="section-header">
           <div>
-            <div class="section-title">Profile</div>
-            <div class="section-sub">Your medical profile and account settings</div>
+            <h2 class="section-title">Profile</h2>
+            <p class="section-sub">Your medical profile and account settings</p>
           </div>
         </div>
         <div class="card" style="max-width:640px">
           <div class="profile-header">
-            <div class="profile-avatar" id="profileAvatar">P</div>
+            <div class="profile-avatar" id="profileAvatar" aria-hidden="true">P</div>
             <div class="profile-info">
-              <div class="profile-name" id="profileName">—</div>
-              <div class="profile-email" id="profileEmail">—</div>
-              <div class="profile-badge"><span></span> Patient</div>
+              <div class="profile-name" id="profileName">&mdash;</div>
+              <div class="profile-email" id="profileEmail">&mdash;</div>
+              <div class="profile-badge">Patient</div>
             </div>
           </div>
           <div class="divider"></div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Full Name</label>
-              <input type="text" class="form-input" id="profFullName" placeholder="Jane Doe" />
+          <form id="profileFormEl" novalidate>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="profFullName">Full Name</label>
+                <input type="text" class="form-input" id="profFullName" placeholder="Jane Doe" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="profContact">Contact Number</label>
+                <input type="tel" class="form-input" id="profContact" placeholder="+91 98765 43210" required />
+              </div>
             </div>
             <div class="form-group">
-              <label class="form-label">Contact Number</label>
-              <input type="text" class="form-input" id="profContact" placeholder="+91 98765 43210" />
+              <label class="form-label" for="profAddress">Address</label>
+              <input type="text" class="form-input" id="profAddress" placeholder="123 Main St, City" />
             </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Address</label>
-            <input type="text" class="form-input" id="profAddress" placeholder="123 Main St, City" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Blood Group</label>
-              <select class="form-select" id="profBlood">
-                <option value="">Select blood group</option>
-                <option>A+</option><option>A-</option>
-                <option>B+</option><option>B-</option>
-                <option>O+</option><option>O-</option>
-                <option>AB+</option><option>AB-</option>
-              </select>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="profBlood">Blood Group</label>
+                <select class="form-select" id="profBlood">
+                  <option value="">Select blood group</option>
+                  <option>A+</option><option>A-</option>
+                  <option>B+</option><option>B-</option>
+                  <option>O+</option><option>O-</option>
+                  <option>AB+</option><option>AB-</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="profStatus">Current Status</label>
+                <select class="form-select" id="profStatus">
+                  <option value="stable">Stable</option>
+                  <option value="monitoring">Under Monitoring</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Current Status</label>
-              <select class="form-select" id="profStatus">
-                <option value="stable">Stable</option>
-                <option value="monitoring">Under Monitoring</option>
-                <option value="critical">Critical</option>
-              </select>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px">
+              <button type="submit" class="btn btn-primary" id="profileSaveBtn">Save Profile</button>
             </div>
-          </div>
-          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:8px">
-            <button class="btn btn-primary" onclick="saveProfile()">Save Profile</button>
-          </div>
+          </form>
         </div>
       </div>
 
-    </div><!-- end content wrapper -->
-  </div><!-- end .main -->
-</div><!-- end .app -->
-
-<!-- Upload Modal -->
-<div class="modal-overlay" id="uploadModal">
-  <div class="modal">
-    <div class="modal-title">Upload Medical File</div>
-    <div class="modal-sub">Upload records, prescriptions, lab results or scan images</div>
-    <label class="upload-zone" id="uploadZone" for="modalFileInput">
-      <div class="upload-zone-icon">⬆</div>
-      <div class="upload-zone-label">Click or drag to upload</div>
-      <div class="upload-zone-sub">JPEG · PNG · PDF · WebP</div>
-    </label>
-    <input type="file" id="modalFileInput" accept="image/*,.pdf" onchange="handleModalUpload(this)">
-    <div id="uploadFileName" style="font-size:13px;color:var(--accent);margin-top:-8px;display:none"></div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeUploadModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="submitModalUpload()" id="modalUploadBtn">Upload</button>
     </div>
   </div>
 </div>
 
-<!-- Toast Container -->
-<div id="toast-container"></div>
-
-<!-- ============================
-     JAVASCRIPT
-============================ -->
-<script>
-// =============================================
-// CONFIG
-// =============================================
-const API = 'http://127.0.0.1:8000';
-let token = localStorage.getItem('mc_token') || null;
-let currentUser = JSON.parse(localStorage.getItem('mc_user') || 'null');
-let currentSessionId = null;
-let chatPolling = null;
-let modalFile = null;
-let sessions = [];
-let files = [];
-
-// =============================================
-// UTILITIES
-// =============================================
-function api(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(API + path, { ...opts, headers });
-}
-
-function apiForm(path, formData) {
-  const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return fetch(API + path, { method: 'POST', headers, body: formData });
-}
-
-function toast(msg, type = 'info') {
-  const c = document.getElementById('toast-container');
-  const t = document.createElement('div');
-  t.className = `toast ${type}`;
-  t.innerHTML = `<div class="toast-dot"></div><span>${msg}</span>`;
-  c.appendChild(t);
-  setTimeout(() => t.remove(), 3500);
-}
-
-function genSessionId() {
-  return 'sess_' + Math.random().toString(36).substr(2, 9);
-}
-
-function formatDate(d) {
-  if (!d) return '';
-  const dt = new Date(d);
-  return dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-}
-
-function getPriorityClass(score) {
-  if (!score) return '';
-  if (score >= 7) return 'high';
-  if (score >= 4) return 'medium';
-  return 'low';
-}
-
-// =============================================
-// AUTH
-// =============================================
-function toggleAuthMode(mode) {
-  document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
-  document.getElementById('registerForm').style.display = mode === 'register' ? 'block' : 'none';
-}
-
-async function handleLogin() {
-  const email = document.getElementById('loginEmail').value;
-  const pass  = document.getElementById('loginPassword').value;
-  if (!email || !pass) { showAuthError('loginError', 'Please fill in all fields'); return; }
-
-  const form = new URLSearchParams();
-  form.append('username', email);
-  form.append('password', pass);
-
-  try {
-    const res = await fetch(API + '/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: form
-    });
-    const data = await res.json();
-    if (!res.ok) { showAuthError('loginError', data.detail || 'Login failed'); return; }
-    token = data.access_token;
-    localStorage.setItem('mc_token', token);
-    await loadCurrentUser(email);
-    enterApp();
-  } catch (e) { showAuthError('loginError', 'Could not reach server. Is the backend running?'); }
-}
-
-async function handleRegister() {
-  const email = document.getElementById('regEmail').value;
-  const pass  = document.getElementById('regPassword').value;
-  const policy = document.getElementById('regPolicy').checked;
-  const baa   = document.getElementById('regBaa').checked;
-
-  if (!email || !pass) { showAuthError('registerError', 'Please fill in all fields'); return; }
-  if (!policy) { showAuthError('registerError', 'Please accept the Terms of Service'); return; }
-
-  try {
-    const res = await api('/users/', {
-      method: 'POST',
-      body: JSON.stringify({ email, password: pass, is_policy_accepted: policy, has_signed_baa: baa })
-    });
-    const data = await res.json();
-    if (!res.ok) { showAuthError('registerError', data.detail || 'Registration failed'); return; }
-    toast('Account created! Please sign in.', 'success');
-    toggleAuthMode('login');
-    document.getElementById('loginEmail').value = email;
-  } catch (e) { showAuthError('registerError', 'Could not reach server'); }
-}
-
-function showAuthError(id, msg) {
-  const el = document.getElementById(id);
-  el.textContent = msg;
-  el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 4000);
-}
-
-async function loadCurrentUser(email) {
-  currentUser = { email };
-  localStorage.setItem('mc_user', JSON.stringify(currentUser));
-}
-
-function enterApp() {
-  document.getElementById('authWrap').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'flex';
-  const email = currentUser?.email || '';
-  document.getElementById('sidebarEmail').textContent = email;
-  document.getElementById('sidebarAvatar').textContent = email[0]?.toUpperCase() || 'P';
-  document.getElementById('profileEmail').textContent = email;
-  document.getElementById('profileAvatar').textContent = email[0]?.toUpperCase() || 'P';
-  loadDashboard();
-}
-
-function handleLogout() {
-  token = null;
-  currentUser = null;
-  currentSessionId = null;
-  localStorage.removeItem('mc_token');
-  localStorage.removeItem('mc_user');
-  if (chatPolling) clearInterval(chatPolling);
-  document.getElementById('authWrap').style.display = 'flex';
-  document.getElementById('mainApp').style.display = 'none';
-  toast('Signed out', 'info');
-}
-
-// =============================================
-// NAVIGATION
-// =============================================
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => {
-    s.classList.remove('active');
-    s.style.display = 'none';
-  });
-  const s = document.getElementById('screen-' + name);
-  s.style.display = name === 'chat' ? 'flex' : 'block';
-  requestAnimationFrame(() => s.classList.add('active'));
-
-  document.querySelectorAll('.nav-item').forEach(n => {
-    n.classList.toggle('active', n.dataset.screen === name);
-  });
-
-  const titles = {
-    dashboard: ['Overview', 'Your health at a glance'],
-    chat: ['AI Consultation', 'Talk to your medical assistant'],
-    files: ['Medical Files', 'Your uploaded records and documents'],
-    profile: ['Profile', 'Manage your account and health info']
-  };
-  document.getElementById('topbarTitle').innerHTML =
-    titles[name][0] + `<span>${titles[name][1]}</span>`;
-
-  if (name === 'files') loadFiles();
-  if (name === 'chat')  loadSessions();
-}
-
-// =============================================
-// DASHBOARD
-// =============================================
-async function loadDashboard() {
-  try {
-    const [sessRes, filesRes] = await Promise.all([
-      api('/users/me/chats/'),
-      api('/users/me/media/')
-    ]);
-    sessions = sessRes.ok ? await sessRes.json() : [];
-    files    = filesRes.ok ? await filesRes.json() : [];
-
-    document.getElementById('statSessions').textContent = sessions.length;
-    document.getElementById('statFiles').textContent = files.length;
-
-    const withSummary = sessions.filter(s => s.summary?.priority_score);
-    const pending = sessions.filter(s => s.summary && !s.summary.reviewed).length;
-    document.getElementById('statPending').textContent = pending || '—';
-
-    if (withSummary.length) {
-      const avg = (withSummary.reduce((a, s) => a + (s.summary.priority_score || 0), 0) / withSummary.length).toFixed(1);
-      document.getElementById('statPriority').textContent = avg;
-    }
-
-    renderRecentChats(sessions.slice(0, 4));
-    renderRecentFiles(files.slice(0, 4));
-  } catch (e) { console.error(e); }
-}
-
-function renderRecentChats(sessions) {
-  const el = document.getElementById('recentChats');
-  if (!sessions.length) return;
-  el.innerHTML = sessions.map(s => {
-    const last = s.messages?.slice().reverse().find(m => m.sender !== 'system');
-    const score = s.summary?.priority_score;
-    const priClass = getPriorityClass(score);
-    return `
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openSession('${s.session_id}')">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;color:var(--text);font-family:var(--mono);margin-bottom:2px">${s.session_id}</div>
-          <div style="font-size:12px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${last?.text?.slice(0,60) || 'No messages yet'}…</div>
-        </div>
-        ${score ? `<span class="priority ${priClass}">${score}/10</span>` : ''}
-      </div>
-    `;
-  }).join('');
-}
-
-function renderRecentFiles(files) {
-  const el = document.getElementById('recentFiles');
-  if (!files.length) return;
-  el.innerHTML = files.map(f => {
-    const icon = f.file_type === 'audio' ? '🎵' : f.file_type?.includes('pdf') ? '📄' : '🖼';
-    return `
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:20px">${icon}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.file_name}</div>
-          <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${formatDate(f.created_at)}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-// =============================================
-// CHAT
-// =============================================
-async function loadSessions() {
-  try {
-    const res = await api('/users/me/chats/');
-    sessions = res.ok ? await res.json() : [];
-    renderSessionList();
-  } catch (e) { console.error(e); }
-}
-
-function renderSessionList() {
-  const el = document.getElementById('sessionList');
-  if (!sessions.length) {
-    el.innerHTML = '<div class="empty-state" style="padding:30px 16px"><div class="empty-state-sub">No sessions yet. Click "+ New" to start.</div></div>';
-    return;
-  }
-  el.innerHTML = sessions.map(s => {
-    const last = s.messages?.slice().reverse().find(m => m.sender !== 'system');
-    return `
-      <div class="session-item ${s.session_id === currentSessionId ? 'active' : ''}" onclick="openSession('${s.session_id}')">
-        <div class="session-id">${s.session_id}</div>
-        <div class="session-preview">${last?.text?.slice(0, 45) || 'No messages'}…</div>
-        <div class="session-date">${formatDate(s.created_at)}</div>
-      </div>
-    `;
-  }).join('');
-}
-
-function createNewSession() {
-  currentSessionId = genSessionId();
-  document.getElementById('currentSessionName').textContent = currentSessionId;
-  document.getElementById('currentSessionMeta').textContent = 'New session — type to begin';
-  document.getElementById('summaryBtn').disabled = false;
-  renderMessages([]);
-  toast('New session started', 'success');
-}
-
-function openSession(id) {
-  currentSessionId = id;
-  const s = sessions.find(x => x.session_id === id);
-  document.getElementById('currentSessionName').textContent = id;
-  document.getElementById('currentSessionMeta').textContent = `${s?.messages?.length || 0} messages · ${formatDate(s?.created_at)}`;
-  document.getElementById('summaryBtn').disabled = false;
-  renderMessages(s?.messages || []);
-  renderSessionList();
-
-  if (s?.summary) {
-    appendSummaryCard(s.summary);
-  }
-}
-
-function renderMessages(msgs) {
-  const el = document.getElementById('chatMessages');
-  if (!msgs.length) {
-    el.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">🩺</div>
-        <div class="empty-state-title">Start the conversation</div>
-        <div class="empty-state-sub">Describe your symptoms to the AI assistant</div>
-      </div>`;
-    return;
-  }
-  el.innerHTML = '';
-  msgs.forEach(m => appendMessage(m));
-  el.scrollTop = el.scrollHeight;
-}
-
-function appendMessage(msg) {
-  const el = document.getElementById('chatMessages');
-  const isEmpty = el.querySelector('.empty-state');
-  if (isEmpty) el.innerHTML = '';
-
-  const senderClass = msg.sender === 'patient' ? 'patient' : msg.sender === 'system' ? 'system' : 'ai';
-  const avatarLabel = senderClass === 'patient' ? (currentUser?.email?.[0]?.toUpperCase() || 'P') : senderClass === 'system' ? '⚙' : '🤖';
-
-  const div = document.createElement('div');
-  div.className = `msg ${senderClass}`;
-  div.innerHTML = `
-    <div class="msg-avatar">${avatarLabel}</div>
-    <div>
-      <div class="msg-bubble">${msg.text?.replace(/\n/g, '<br>') || ''}</div>
-      ${msg.is_file ? `<div class="msg-file-tag">📎 Attached file</div>` : ''}
-      <div class="msg-time">${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
-    </div>`;
-  el.appendChild(div);
-  el.scrollTop = el.scrollHeight;
-}
-
-function appendSummaryCard(summary) {
-  const el = document.getElementById('chatMessages');
-  const div = document.createElement('div');
-  div.className = 'summary-card';
-  const score = summary.priority_score;
-  div.innerHTML = `
-    <div class="summary-card-title">— Clinical Summary —</div>
-    ${Object.entries(summary).map(([k, v]) => `
-      <div class="summary-row">
-        <span class="summary-key">${k.replace(/_/g, ' ')}</span>
-        <span class="summary-val">${k === 'priority_score' ? `<span class="priority ${getPriorityClass(v)}">${v}/10</span>` : v}</span>
-      </div>`).join('')}`;
-  el.appendChild(div);
-  el.scrollTop = el.scrollHeight;
-}
-
-async function sendChatMessage() {
-  const input = document.getElementById('chatInput');
-  const msg = input.value.trim();
-  if (!msg || !currentSessionId) {
-    if (!currentSessionId) { toast('Start or select a session first', 'error'); return; }
-    return;
-  }
-
-  input.value = '';
-  input.style.height = 'auto';
-  appendMessage({ sender: 'patient', text: msg });
-
-  // Typing indicator
-  const el = document.getElementById('chatMessages');
-  const typing = document.createElement('div');
-  typing.className = 'msg ai'; typing.id = 'typing-indicator';
-  typing.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-bubble" style="color:var(--text-faint);font-style:italic">Thinking…</div>`;
-  el.appendChild(typing);
-  el.scrollTop = el.scrollHeight;
-
-  try {
-    const res = await api('/chat/', {
-      method: 'POST',
-      body: JSON.stringify({ user_id: 1, session_id: currentSessionId, message: msg })
-    });
-    const data = await res.json();
-    document.getElementById('typing-indicator')?.remove();
-    if (res.ok) {
-      appendMessage({ sender: 'ai', text: data.response });
-      await loadSessions();
-      const s = sessions.find(x => x.session_id === currentSessionId);
-      if (s?.summary) appendSummaryCard(s.summary);
-    } else {
-      appendMessage({ sender: 'ai', text: `Error: ${data.detail || 'Something went wrong'}` });
-    }
-  } catch (e) {
-    document.getElementById('typing-indicator')?.remove();
-    appendMessage({ sender: 'ai', text: 'Could not reach the server. Please check your connection.' });
-  }
-}
-
-function handleChatKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendChatMessage();
-  }
-}
-
-function insertHint(text) {
-  document.getElementById('chatInput').value = text;
-  document.getElementById('chatInput').focus();
-}
-
-async function requestSummary() {
-  document.getElementById('chatInput').value = 'Please SUMMARIZE our conversation';
-  await sendChatMessage();
-}
-
-async function handleChatFileUpload(input) {
-  if (!input.files[0] || !currentSessionId) {
-    if (!currentSessionId) toast('Start a session first', 'error');
-    return;
-  }
-  const file = input.files[0];
-  const form = new FormData();
-  form.append('file', file);
-  form.append('session_id', currentSessionId);
-
-  toast('Uploading file for analysis…', 'info');
-  appendMessage({ sender: 'system', text: `Uploading ${file.name}…`, status: 'processing' });
-
-  try {
-    const res = await apiForm('/chat/upload', form);
-    const data = await res.json();
-    if (res.ok) {
-      toast('File uploaded! Analysis running…', 'success');
-    } else {
-      toast(data.detail || 'Upload failed', 'error');
-    }
-  } catch (e) { toast('Upload failed', 'error'); }
-  input.value = '';
-}
-
-// =============================================
-// FILES
-// =============================================
-async function loadFiles() {
-  try {
-    const res = await api('/users/me/media/');
-    files = res.ok ? await res.json() : [];
-    renderFiles();
-  } catch (e) { console.error(e); }
-}
-
-function renderFiles() {
-  const el = document.getElementById('filesGrid');
-  if (!files.length) {
-    el.innerHTML = `
-      <div class="empty-state" style="grid-column:1/-1;padding:60px 20px">
-        <div class="empty-state-icon">📂</div>
-        <div class="empty-state-title">No files yet</div>
-        <div class="empty-state-sub">Upload your medical records, prescriptions, or scans</div>
-      </div>`;
-    return;
-  }
-  el.innerHTML = files.map(f => {
-    let typeClass = 'image';
-    let typeIcon = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>`;
-    if (f.file_type === 'audio') {
-      typeClass = 'audio';
-      typeIcon = `<svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
-    } else if (f.file_type === 'pdf' || f.file_name?.endsWith('.pdf')) {
-      typeClass = 'pdf';
-      typeIcon = `<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>`;
-    }
-    const isProcessing = f.transcript?.includes('being analyzed') || f.transcript?.includes('being transcribed') || f.drive_file_id === 'processing...';
-    return `
-      <div class="file-card" onclick="viewFile(${f.id})">
-        <div class="file-card-actions">
-          <button class="file-delete-btn" onclick="event.stopPropagation();deleteFile(${f.id})">
-            <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,01-2,2H7a2,2,0,01-2-2V6m3,0V4a2,2,0,012-2h4a2,2,0,012,2v2"/></svg>
-          </button>
-        </div>
-        <div class="file-icon ${typeClass}">${typeIcon}</div>
-        <div class="file-name">${f.file_name}</div>
-        <div class="file-meta">${formatDate(f.created_at)} · ${f.file_type}</div>
-        ${isProcessing
-          ? `<div class="file-transcript" style="color:var(--amber);font-style:italic">⟳ Processing…</div>`
-          : f.transcript && f.transcript !== 'User Uploaded Record'
-            ? `<div class="file-transcript">${f.transcript}</div>`
-            : ''}
-      </div>`;
-  }).join('');
-
-  const processing = files.some(f => f.drive_file_id === 'processing...');
-  document.getElementById('processingBanner').style.display = processing ? 'flex' : 'none';
-  if (processing) setTimeout(loadFiles, 5000);
-}
-
-async function deleteFile(id) {
-  if (!confirm('Delete this file permanently?')) return;
-  try {
-    const res = await api(`/media/${id}`, { method: 'DELETE' });
-    if (res.ok) { toast('File deleted', 'success'); loadFiles(); loadDashboard(); }
-    else toast('Could not delete file', 'error');
-  } catch (e) { toast('Error deleting file', 'error'); }
-}
-
-function viewFile(id) {
-  const f = files.find(x => x.id === id);
-  if (f?.drive_view_link) {
-    window.open(f.drive_view_link, '_blank');
-  } else {
-    toast('File not yet available', 'info');
-  }
-}
-
-async function handleGenericUpload(input) {
-  if (!input.files[0]) return;
-  const form = new FormData();
-  form.append('file', input.files[0]);
-  toast('Uploading…', 'info');
-  try {
-    const res = await apiForm('/media/upload/', form);
-    const data = await res.json();
-    if (res.ok) { toast('File uploaded!', 'success'); loadFiles(); loadDashboard(); }
-    else toast(data.detail || 'Upload failed', 'error');
-  } catch (e) { toast('Upload error', 'error'); }
-  input.value = '';
-}
-
-async function handleOcrUpload(input) {
-  if (!input.files[0]) return;
-  const form = new FormData();
-  form.append('file', input.files[0]);
-  toast('Starting OCR analysis…', 'info');
-  try {
-    const res = await apiForm('/ocr/analyze', form);
-    const data = await res.json();
-    if (res.ok) { toast('OCR started! Results in a few seconds.', 'success'); loadFiles(); }
-    else toast(data.detail || 'OCR failed', 'error');
-  } catch (e) { toast('OCR error', 'error'); }
-  input.value = '';
-}
-
-// =============================================
-// UPLOAD MODAL
-// =============================================
-function openUploadModal() {
-  document.getElementById('uploadModal').classList.add('open');
-  modalFile = null;
-}
-
-function closeUploadModal() {
-  document.getElementById('uploadModal').classList.remove('open');
-  document.getElementById('uploadFileName').style.display = 'none';
-  document.getElementById('modalFileInput').value = '';
-  modalFile = null;
-}
-
-function handleModalUpload(input) {
-  if (input.files[0]) {
-    modalFile = input.files[0];
-    const fn = document.getElementById('uploadFileName');
-    fn.textContent = '📎 ' + modalFile.name;
-    fn.style.display = 'block';
-  }
-}
-
-async function submitModalUpload() {
-  if (!modalFile) { toast('Please select a file first', 'error'); return; }
-  const btn = document.getElementById('modalUploadBtn');
-  btn.textContent = 'Uploading…'; btn.disabled = true;
-  const form = new FormData();
-  form.append('file', modalFile);
-  try {
-    const res = await apiForm('/media/upload/', form);
-    const data = await res.json();
-    if (res.ok) {
-      toast('File uploaded successfully!', 'success');
-      closeUploadModal();
-      loadFiles();
-      loadDashboard();
-    } else toast(data.detail || 'Upload failed', 'error');
-  } catch (e) { toast('Upload error', 'error'); }
-  btn.textContent = 'Upload'; btn.disabled = false;
-}
-
-// Upload zone drag-and-drop
-document.getElementById('uploadZone').addEventListener('dragover', e => {
-  e.preventDefault();
-  e.currentTarget.classList.add('drag-over');
-});
-document.getElementById('uploadZone').addEventListener('dragleave', e => {
-  e.currentTarget.classList.remove('drag-over');
-});
-document.getElementById('uploadZone').addEventListener('drop', e => {
-  e.preventDefault();
-  e.currentTarget.classList.remove('drag-over');
-  if (e.dataTransfer.files[0]) {
-    modalFile = e.dataTransfer.files[0];
-    const fn = document.getElementById('uploadFileName');
-    fn.textContent = '📎 ' + modalFile.name;
-    fn.style.display = 'block';
-  }
-});
-
-// Close modal on backdrop click
-document.getElementById('uploadModal').addEventListener('click', e => {
-  if (e.target === document.getElementById('uploadModal')) closeUploadModal();
-});
-
-// =============================================
-// PROFILE
-// =============================================
-async function saveProfile() {
-  const body = {
-    full_name: document.getElementById('profFullName').value,
-    contact_no: document.getElementById('profContact').value,
-    address: document.getElementById('profAddress').value,
-    blood_group: document.getElementById('profBlood').value,
-    current_status: document.getElementById('profStatus').value,
-  };
-  if (!body.full_name || !body.contact_no) { toast('Full name and contact are required', 'error'); return; }
-  try {
-    const res = await api('/users/me/profile/', { method: 'POST', body: JSON.stringify(body) });
-    if (res.ok) {
-      toast('Profile saved!', 'success');
-      document.getElementById('profileName').textContent = body.full_name;
-      document.getElementById('profileAvatar').textContent = body.full_name[0].toUpperCase();
-      document.getElementById('sidebarAvatar').textContent = body.full_name[0].toUpperCase();
-    } else {
-      const d = await res.json();
-      toast(d.detail || 'Save failed', 'error');
-    }
-  } catch (e) { toast('Server error', 'error'); }
-}
-
-// =============================================
-// INIT
-// =============================================
-if (token) {
-  const email = currentUser?.email || 'patient';
-  document.getElementById('sidebarEmail').textContent = email;
-  document.getElementById('sidebarAvatar').textContent = email[0]?.toUpperCase() || 'P';
-  document.getElementById('profileEmail').textContent = email;
-  document.getElementById('profileAvatar').textContent = email[0]?.toUpperCase() || 'P';
-  document.getElementById('authWrap').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'flex';
-  loadDashboard();
-}
-</script>
+<!-- Upload Modal -->
+<div class="modal-overlay" id="uploadModal" role="dialog" aria-modal="true" aria-label="Upload medical file">
+  <div class="modal">
+    <div class="modal-title">Upload Medical File</div>
+    <div class="modal-sub">Upload records, prescriptions, lab results or scan images</div>
+    <label class="upload-zone" id="uploadZone" for="modalFileInput" tabindex="0" role="button" aria-label="Click or drag to upload file">
+      <div class="upload-zone-icon" aria-hidden="true">⬆</div>
+      <div class="upload-zone-label">Click or drag to upload</div>
+      <div class="upload-zone-sub">JPEG · PNG · PDF · WebP — Max 25 MB</div>
+    </label>
+    <input type="file" id="modalFileInput" accept="image/*,.pdf,.webp">
+    <div id="uploadFileName" style="font-size:13px;color:var(--accent);margin-top:-8px;display:none" aria-live="polite"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-action="close-upload" type="button">Cancel</button>
+      <button class="btn btn-primary" data-action="submit-upload" id="modalUploadBtn" type="button" disabled>Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirmModal" role="alertdialog" aria-modal="true" aria-label="Confirmation">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title" id="confirmTitle">Confirm</div>
+    <div class="confirm-body" id="confirmBody">Are you sure?</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-action="confirm-cancel" type="button">Cancel</button>
+      <button class="btn btn-danger" data-action="confirm-ok" id="confirmOkBtn" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" role="status" aria-live="polite" aria-label="Notifications"></div>
+
+<script src="app.js"></script>
 </body>
 </html>
