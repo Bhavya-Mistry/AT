@@ -165,29 +165,57 @@
     <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
 
       <!-- ===== DASHBOARD ===== -->
+      <!-- DASHBOARD -->
       <div class="content screen active" id="screen-dashboard">
-        <div class="stats-row" role="list" aria-label="Statistics">
+      
+        <!-- Patient Stats -->
+        <div class="stats-row role-patient" role="list" aria-label="Patient statistics">
           <div class="stat-card" role="listitem" style="--accent-bar:var(--accent)">
-            <div class="stat-label" id="statSessionsLabel">Total Sessions</div>
-            <div class="stat-value" id="statSessions">0</div>
-            <div class="stat-sub" id="statSessionsSub">AI consultations</div>
+            <div class="stat-label">Total Sessions</div>
+            <div class="stat-value" id="statPatientSessions">0</div>
+            <div class="stat-sub">AI consultations</div>
           </div>
           <div class="stat-card" role="listitem" style="--accent-bar:var(--blue)">
-            <div class="stat-label" id="statFilesLabel">Medical Files</div>
-            <div class="stat-value" id="statFiles">0</div>
-            <div class="stat-sub" id="statFilesSub">Uploaded records</div>
+            <div class="stat-label">Medical Files</div>
+            <div class="stat-value" id="statPatientFiles">0</div>
+            <div class="stat-sub">Uploaded records</div>
+          </div>
+          <div class="stat-card" role="listitem" style="--accent-bar:var(--amber)">
+            <div class="stat-label">Prescriptions</div>
+            <div class="stat-value" id="statPatientRx">&mdash;</div>
+            <div class="stat-sub">From your doctor</div>
+          </div>
+          <div class="stat-card" role="listitem" style="--accent-bar:var(--red)">
+            <div class="stat-label">Latest Priority</div>
+            <div class="stat-value" id="statPatientPriority">&mdash;</div>
+            <div class="stat-sub">Most recent triage</div>
+          </div>
+        </div>
+      
+        <!-- Doctor Stats -->
+        <div class="stats-row role-doctor" role="list" aria-label="Doctor statistics" style="display:none">
+          <div class="stat-card" role="listitem" style="--accent-bar:var(--purple)">
+            <div class="stat-label">Total Patients</div>
+            <div class="stat-value" id="statDocPatients">0</div>
+            <div class="stat-sub">Registered patients</div>
+          </div>
+          <div class="stat-card" role="listitem" style="--accent-bar:var(--blue)">
+            <div class="stat-label">Total Sessions</div>
+            <div class="stat-value" id="statDocSessions">&mdash;</div>
+            <div class="stat-sub">Across all patients</div>
           </div>
           <div class="stat-card" role="listitem" style="--accent-bar:var(--amber)">
             <div class="stat-label">Pending Reviews</div>
-            <div class="stat-value" id="statPending">&mdash;</div>
-            <div class="stat-sub">Awaiting review</div>
+            <div class="stat-value" id="statDocPending">&mdash;</div>
+            <div class="stat-sub">Awaiting prescription</div>
           </div>
           <div class="stat-card" role="listitem" style="--accent-bar:var(--red)">
             <div class="stat-label">Avg Priority</div>
-            <div class="stat-value" id="statPriority">&mdash;</div>
+            <div class="stat-value" id="statDocPriority">&mdash;</div>
             <div class="stat-sub">Triage score</div>
           </div>
         </div>
+      
         <div class="two-col">
           <div class="card">
             <div class="card-header">
@@ -394,8 +422,8 @@
               <div class="form-group">
                 <label class="form-label" for="profStatus">Current Status</label>
                 <select class="form-select" id="profStatus">
-                  <option value="stable">Stable</option>
-                  <option value="monitoring">Under Monitoring</option>
+                  <option value="mild">Mild</option>
+                  <option value="past_record">Past Record</option>
                   <option value="critical">Critical</option>
                 </select>
               </div>

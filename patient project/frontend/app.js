@@ -379,6 +379,7 @@ const App = (() => {
     applyRole();
     showScreen("dashboard");
     loadDashboard();
+    loadProfile();
   }
 
   function handleLogout(expired = false) {
@@ -407,7 +408,7 @@ const App = (() => {
   // ═══════════════════════════════════════
   // ROLE-BASED UI
   // ═══════════════════════════════════════
-  function applyRole() {
+    function applyRole() {
     const email = state.user?.email || "";
     const role = state.user?.role || "patient";
     const initial = email[0]?.toUpperCase() || "U";
@@ -427,7 +428,7 @@ const App = (() => {
     $("#profileBadge").textContent = roleLabel;
     $("#profileBadge").classList.toggle("doctor-badge", doc);
 
-    // Show/hide role-specific nav items
+    // Show/hide role-specific elements (nav items, stat rows, buttons)
     $$(".role-patient").forEach((el) => {
       el.style.display = doc ? "none" : "";
     });
@@ -435,22 +436,14 @@ const App = (() => {
       el.style.display = doc ? "" : "none";
     });
 
-    // Dashboard labels for doctor
+    // Dashboard cards — adjust titles and actions based on role
     if (doc) {
-      $("#statSessionsLabel").textContent = "Total Patients";
-      $("#statSessionsSub").textContent = "Registered patients";
-      $("#statFilesLabel").textContent = "Total Sessions";
-      $("#statFilesSub").textContent = "Across all patients";
       $("#recentChatsTitle").textContent = "High Priority Patients";
       $("#recentFilesTitle").textContent = "Recent Activity";
       $("#viewAllChatsBtn").setAttribute("data-action", "go-patients");
       $("#viewAllChatsBtn").textContent = "View all patients";
       $("#viewAllFilesBtn").style.display = "none";
     } else {
-      $("#statSessionsLabel").textContent = "Total Sessions";
-      $("#statSessionsSub").textContent = "AI consultations";
-      $("#statFilesLabel").textContent = "Medical Files";
-      $("#statFilesSub").textContent = "Uploaded records";
       $("#recentChatsTitle").textContent = "Recent Consultations";
       $("#recentFilesTitle").textContent = "Recent Files";
       $("#viewAllChatsBtn").setAttribute("data-action", "go-chat");
@@ -493,6 +486,7 @@ const App = (() => {
     if (name === "chat") { loadSessions(); startPolling(); } else { stopPolling(); }
     if (name === "dashboard") loadDashboard();
     if (name === "patients") loadPatients();
+    if (name === "profile") loadProfile();
 
     closeSidebar();
   }
@@ -520,7 +514,7 @@ const App = (() => {
     }
   }
 
-  async function loadPatientDashboard() {
+    async function loadPatientDashboard() {
     try {
       const [sessRes, filesRes] = await Promise.allSettled([
         api("/users/me/chats/", { _abortKey: "dash-chats" }),
@@ -529,18 +523,29 @@ const App = (() => {
       if (sessRes.status === "fulfilled" && sessRes.value.ok) state.sessions = await sessRes.value.json();
       if (filesRes.status === "fulfilled" && filesRes.value.ok) state.files = await filesRes.value.json();
 
-      $("#statSessions").textContent = state.sessions.length;
-      $("#statFiles").textContent = state.files.length;
+      // Session count
+      $("#statPatientSessions").textContent = state.sessions.length;
 
+      // File count
+      $("#statPatientFiles").textContent = state.files.length;
+
+      // Count prescriptions (files that start with "Rx:")
+      const rxCount = state.files.filter((f) =>
+        f.file_name?.startsWith("Rx:") || f.file_type === "pdf"
+      ).length;
+      $("#statPatientRx").textContent = rxCount || "\u2014";
+
+      // Latest priority score (from most recent session with a score)
       const withScore = state.sessions.filter((s) => s.summary?.priority_score);
-      const pending = state.sessions.filter((s) => s.summary && !s.summary.reviewed).length;
-      $("#statPending").textContent = pending || "\u2014";
-
       if (withScore.length) {
-        const avg = (withScore.reduce((a, s) => a + (s.summary.priority_score || 0), 0) / withScore.length).toFixed(1);
-        $("#statPriority").textContent = avg;
+        // Sort by date, get most recent
+        const sorted = withScore.sort((a, b) =>
+          new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        );
+        const latest = sorted[0].summary.priority_score;
+        $("#statPatientPriority").textContent = latest;
       } else {
-        $("#statPriority").textContent = "\u2014";
+        $("#statPatientPriority").textContent = "\u2014";
       }
 
       renderRecentChats(state.sessions.slice(0, 4));
@@ -550,34 +555,34 @@ const App = (() => {
     }
   }
 
-    async function loadDoctorDashboard() {
+      async function loadDoctorDashboard() {
     try {
-      // 1. Load all patients
       const res = await api("/doctor/patients/", { _abortKey: "doc-dash" });
       if (!res.ok) return;
       state.patients = await res.json();
 
-      $("#statSessions").textContent = state.patients.length;
+      // Patient count
+      $("#statDocPatients").textContent = state.patients.length;
 
-      // Show patients badge
+      // Show patients badge in sidebar
       const badge = $("#patientsBadge");
       if (state.patients.length) {
         badge.textContent = state.patients.length;
         badge.style.display = "";
       }
 
-      // 2. Fetch summaries for ALL patients in parallel
+      // Fetch summaries for all patients in parallel
       const summaryPromises = state.patients.map((p) =>
         apiJSON(`/doctor/patients/${p.id}/summaries`).catch(() => [])
       );
       const allSummaries = await Promise.all(summaryPromises);
 
-      // Cache them for later use
+      // Cache for later use
       state.patients.forEach((p, i) => {
         state.patientSummariesCache[p.id] = allSummaries[i];
       });
 
-      // 3. Aggregate stats across all patients
+      // Aggregate stats
       let totalSessions = 0;
       let totalPriority = 0;
       let priorityCount = 0;
@@ -604,7 +609,6 @@ const App = (() => {
           }
         });
 
-        // Track highest priority per patient for the dashboard list
         if (patientMaxPriority > 0) {
           highPriorityPatients.push({
             ...patient,
@@ -614,14 +618,14 @@ const App = (() => {
         }
       });
 
-      // 4. Update stat cards
-      $("#statFiles").textContent = totalSessions;
-      $("#statPending").textContent = pendingCount || "\u2014";
-      $("#statPriority").textContent = priorityCount
+      // Update doctor stat cards
+      $("#statDocSessions").textContent = totalSessions || "\u2014";
+      $("#statDocPending").textContent = pendingCount || "\u2014";
+      $("#statDocPriority").textContent = priorityCount
         ? (totalPriority / priorityCount).toFixed(1)
         : "\u2014";
 
-      // 5. Render patients sorted by priority (highest first)
+      // Render patients sorted by priority
       highPriorityPatients.sort((a, b) => b.maxPriority - a.maxPriority);
       renderDoctorRecentPatients(
         highPriorityPatients.length
@@ -1479,6 +1483,37 @@ function closeChatViewer() {
   // ═══════════════════════════════════════
   // PROFILE
   // ═══════════════════════════════════════
+    async function loadProfile() {
+    try {
+      const res = await api("/users/me/profile/", { _abortKey: "load-profile" });
+
+      if (res.ok) {
+        const profile = await res.json();
+
+        // Populate form fields
+        $("#profFullName").value = profile.full_name || "";
+        $("#profContact").value = profile.contact_no || "";
+        $("#profAddress").value = profile.address || "";
+        $("#profBlood").value = profile.blood_group || "";
+        $("#profStatus").value = profile.current_status || "stable";
+
+        // Update avatar and name display
+        if (profile.full_name) {
+          const initial = profile.full_name[0].toUpperCase();
+          $("#profileName").textContent = profile.full_name;
+          $("#profileAvatar").textContent = initial;
+          $("#sidebarAvatar").textContent = initial;
+        }
+      } else if (res.status === 404) {
+        // No profile yet — form stays empty, that's fine
+        console.log("[Profile] No existing profile found");
+      }
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error("[Profile] Failed to load:", err);
+      }
+    }
+  }
   async function saveProfile(e) {
     e.preventDefault();
     const body = {
