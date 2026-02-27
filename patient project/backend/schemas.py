@@ -74,7 +74,7 @@ class ChatHistoryRead(BaseModel):
 
 # --- CHAT INPUT ---
 class ChatRequest(BaseModel):
-    user_id: int
+    # user_id: int
     session_id: str
     message: str
 

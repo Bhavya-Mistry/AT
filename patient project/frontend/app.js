@@ -126,6 +126,32 @@ const App = (() => {
     return file && file.size <= CONFIG.MAX_FILE_SIZE;
   }
 
+function parseApiError(data) {
+  if (!data) return "Unknown error";
+  if (typeof data === "string") return data;
+
+  // FastAPI string detail
+  if (typeof data.detail === "string") return data.detail;
+
+  // FastAPI validation error array: { detail: [{ msg, loc, type }] }
+  if (Array.isArray(data.detail)) {
+    return data.detail
+      .map((err) => {
+        if (typeof err === "string") return err;
+        const field = err.loc ? err.loc.slice(-1)[0] : "";
+        return field ? `${field}: ${err.msg}` : err.msg || JSON.stringify(err);
+      })
+      .join("; ");
+  }
+
+  // Other common shapes
+  if (typeof data.detail === "object") return JSON.stringify(data.detail);
+  if (typeof data.message === "string") return data.message;
+  if (typeof data.error === "string") return data.error;
+
+  return JSON.stringify(data);
+}
+
   function autoResize(el) {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
@@ -733,96 +759,119 @@ const App = (() => {
   }
 
   async function sendChatMessage() {
-    const input = $("#chatInput");
-    const msg = input.value.trim();
-    if (!msg) return;
-    if (!state.currentSessionId) {
-      toast("Start or select a session first", "error");
-      return;
-    }
-    if (state.isSending) return;
-
-    state.isSending = true;
-    input.value = "";
-    input.style.height = "auto";
-    $("#sendBtn").disabled = true;
-
-    appendMessage({ sender: "patient", text: msg });
-    showTypingIndicator();
-
-    try {
-      const res = await api("/chat/", {
-        method: "POST",
-        body: JSON.stringify({
-          session_id: state.currentSessionId,
-          message: msg,
-        }),
-      });
-      const data = await res.json();
-      removeTypingIndicator();
-
-      if (res.ok) {
-        appendMessage({ sender: "ai", text: data.response });
-        loadSessions().catch(() => {});
-      } else {
-        appendMessage({
-          sender: "system",
-          text: `Error: ${data.detail || "Something went wrong"}`,
-        });
-      }
-    } catch (err) {
-      removeTypingIndicator();
-      if (err.name !== "AbortError") {
-        appendMessage({
-          sender: "system",
-          text: "Could not reach the server. Please check your connection.",
-        });
-      }
-    } finally {
-      state.isSending = false;
-      $("#sendBtn").disabled = false;
-      input.focus();
-    }
+  const input = $("#chatInput");
+  const msg = input.value.trim();
+  if (!msg) return;
+  if (!state.currentSessionId) {
+    toast("Start or select a session first", "error");
+    return;
   }
+  if (state.isSending) return;
+
+  state.isSending = true;
+  input.value = "";
+  input.style.height = "auto";
+  $("#sendBtn").disabled = true;
+
+  appendMessage({ sender: "patient", text: msg });
+  showTypingIndicator();
+
+  try {
+    const res = await api("/chat/", {
+      method: "POST",
+      body: JSON.stringify({
+        user_id: 1,
+        session_id: state.currentSessionId,
+        message: msg,
+      }),
+    });
+    const data = await res.json();
+    removeTypingIndicator();
+
+    // Debug: log the full response so you can see its shape
+    console.log("[Chat] Response status:", res.status);
+    console.log("[Chat] Response body:", data);
+
+    if (res.ok) {
+      // Handle different possible response structures
+      const reply =
+        data.response ||
+        data.reply ||
+        data.message ||
+        data.answer ||
+        data.text ||
+        (typeof data === "string" ? data : null);
+
+      if (reply) {
+        appendMessage({ sender: "ai", text: reply });
+      } else {
+        // If we can't find the reply field, show the raw data
+        console.warn("[Chat] Unknown response structure:", data);
+        appendMessage({
+          sender: "ai",
+          text: JSON.stringify(data, null, 2),
+        });
+      }
+      loadSessions().catch(() => {});
+    } else {
+      // Safely extract error message from any format
+      const errorMsg = parseApiError(data);
+      appendMessage({ sender: "system", text: `Error: ${errorMsg}` });
+    }
+  } catch (err) {
+    removeTypingIndicator();
+    if (err.name !== "AbortError") {
+      console.error("[Chat] Request failed:", err);
+      appendMessage({
+        sender: "system",
+        text: "Could not reach the server. Please check your connection.",
+      });
+    }
+  } finally {
+    state.isSending = false;
+    $("#sendBtn").disabled = false;
+    input.focus();
+  }
+}
 
   async function handleChatFileUpload(input) {
-    if (!input.files[0]) return;
-    if (!state.currentSessionId) {
-      toast("Start a session first", "error");
-      input.value = "";
-      return;
-    }
-
-    const file = input.files[0];
-    if (!validateFileSize(file)) {
-      toast(
-        `File too large. Maximum size is ${CONFIG.MAX_FILE_SIZE / 1024 / 1024} MB`,
-        "error"
-      );
-      input.value = "";
-      return;
-    }
-
-    const form = new FormData();
-    form.append("file", file);
-    form.append("session_id", state.currentSessionId);
-
-    toast("Uploading file for analysis…", "info");
-    appendMessage({ sender: "system", text: `Uploading ${file.name}…` });
-
-    try {
-      const res = await apiForm("/chat/upload", form);
-      const data = await res.json();
-      if (res.ok) {
-        toast("File uploaded! Analysis running…", "success");
-      } else {
-        toast(data.detail || "Upload failed", "error");
-      }
-    } catch {
-      toast("Upload failed — check connection", "error");
-    }
+  if (!input.files[0]) return;
+  if (!state.currentSessionId) {
+    toast("Start a session first", "error");
     input.value = "";
+    return;
   }
+
+  const file = input.files[0];
+  if (!validateFileSize(file)) {
+    toast(
+      `File too large. Maximum size is ${CONFIG.MAX_FILE_SIZE / 1024 / 1024} MB`,
+      "error"
+    );
+    input.value = "";
+    return;
+  }
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("session_id", state.currentSessionId);
+
+  toast("Uploading file for analysis…", "info");
+  appendMessage({ sender: "system", text: `Uploading ${file.name}…` });
+
+  try {
+    const res = await apiForm("/chat/upload", form);
+    const data = await res.json();
+    if (res.ok) {
+      toast("File uploaded! Analysis running…", "success");
+    } else {
+      toast(parseApiError(data), "error");  // <-- FIXED
+    }
+  } catch {
+    toast("Upload failed — check connection", "error");
+  }
+  input.value = "";
+}
 
   // ═══════════════════════════════════════
   // POLLING

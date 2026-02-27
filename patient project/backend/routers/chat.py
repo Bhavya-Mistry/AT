@@ -33,62 +33,51 @@ def chat_with_doctor(
 ):
     secure_user_id = current_user.user_id
 
-    # 1. Fetch Chat History
+    # 1. Fetch History OR Create a new one
     history_record = (
         db.query(models.ChatHistory)
         .filter(models.ChatHistory.session_id == request.session_id)
         .first()
     )
 
-    # ... (Keep your existing history_record creation logic here) ...
-
-    # 2. NEW: Fetch all media/files uploaded in THIS specific session
-    # We will look for transcripts of images/audio that happened in this chat
-    session_files = (
-        db.query(models.MedicalMedia)
-        .filter(
-            models.MedicalMedia.patient_id == secure_user_id,
-            models.MedicalMedia.transcript
-            != "User Uploaded Record",  # Filter out generic uploads
-            models.MedicalMedia.transcript != "",
+    if not history_record:
+        messages = []
+        history_record = models.ChatHistory(
+            patient_id=secure_user_id, session_id=request.session_id, messages=messages
         )
-        .all()
-    )
+        db.add(history_record)
+        db.commit()
+        db.refresh(history_record)
+    else:
+        if history_record.patient_id != secure_user_id:
+            raise HTTPException(
+                status_code=403, detail="Not authorized to access this chat"
+            )
+        messages = list(history_record.messages) if history_record.messages else []
 
-    # Create a hidden "context block" for the AI
-    file_context = "\n".join(
-        [f"File ({f.file_name}): {f.transcript}" for f in session_files]
-    )
+    # 2. Call AI
+    # (Gemini already knows about uploaded files because the background
+    # task injects the file transcripts directly into the 'messages' array!)
+    ai_response_text = ai_service.get_ai_response(messages, request.message)
 
-    system_instruction = f"""
-    You are a professional Medical Assistant. 
-    Context from uploaded documents/audio in this session:
-    {file_context}
-    
-    Use the above context to answer the patient's questions accurately. 
-    If they ask about a medicine in an uploaded image, refer to the data above.
-    """
-
-    # 3. Call AI with the added context
-    # Note: You might need to adjust your ai_service.get_ai_response to accept a system_instruction
-    ai_response_text = ai_service.get_ai_response(
-        history_record.messages, request.message, system_instruction
-    )
-
-    # 4. Handle "SUMMARIZE" (Friendly response logic we did in the last step)
+    # 3. Intercept the SUMMARIZE request
     is_summary_request = (
         "SUMMARIZE" in request.message.upper() or "SUMMARY" in request.message.upper()
     )
+
     if is_summary_request:
         summary_json = ai_service.clean_ai_json(ai_response_text)
         if summary_json:
             history_record.summary = summary_json
             flag_modified(history_record, "summary")
-            ai_response_text = "I have successfully generated a clinical summary including your symptoms and all uploaded documents. Your doctor can now review this on their dashboard."
+            # Replace raw JSON with a friendly UI message
+            ai_response_text = "I have successfully generated a clinical summary of this session. Your doctor can now review it on their dashboard."
 
-    # 5. Save and return
-    history_record.messages.append({"sender": "patient", "text": request.message})
-    history_record.messages.append({"sender": "ai", "text": ai_response_text})
+    # 4. Save messages to DB
+    messages.append({"sender": "patient", "text": request.message})
+    messages.append({"sender": "ai", "text": ai_response_text})
+
+    history_record.messages = messages
     flag_modified(history_record, "messages")
     db.commit()
 
