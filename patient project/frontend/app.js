@@ -550,25 +550,14 @@ const App = (() => {
     }
   }
 
-  async function loadDoctorDashboard() {
+    async function loadDoctorDashboard() {
     try {
+      // 1. Load all patients
       const res = await api("/doctor/patients/", { _abortKey: "doc-dash" });
-      if (res.ok) {
-        state.patients = await res.json();
-      }
+      if (!res.ok) return;
+      state.patients = await res.json();
 
-      // Count totals
-      let totalSessions = 0;
-      let totalPriority = 0;
-      let priorityCount = 0;
-      let pending = 0;
-
-      // We don't have full session data from /doctor/patients/ alone,
-      // so show patient count in first stat
       $("#statSessions").textContent = state.patients.length;
-      $("#statFiles").textContent = "\u2014";
-      $("#statPending").textContent = "\u2014";
-      $("#statPriority").textContent = "\u2014";
 
       // Show patients badge
       const badge = $("#patientsBadge");
@@ -577,15 +566,76 @@ const App = (() => {
         badge.style.display = "";
       }
 
-      // Render recent patients in dashboard
-      renderDoctorRecentPatients(state.patients.slice(0, 5));
-      renderDoctorRecentActivity();
+      // 2. Fetch summaries for ALL patients in parallel
+      const summaryPromises = state.patients.map((p) =>
+        apiJSON(`/doctor/patients/${p.id}/summaries`).catch(() => [])
+      );
+      const allSummaries = await Promise.all(summaryPromises);
+
+      // Cache them for later use
+      state.patients.forEach((p, i) => {
+        state.patientSummariesCache[p.id] = allSummaries[i];
+      });
+
+      // 3. Aggregate stats across all patients
+      let totalSessions = 0;
+      let totalPriority = 0;
+      let priorityCount = 0;
+      let pendingCount = 0;
+      let highPriorityPatients = [];
+
+      allSummaries.forEach((sessions, idx) => {
+        const patient = state.patients[idx];
+        totalSessions += sessions.length;
+
+        let patientMaxPriority = 0;
+
+        sessions.forEach((s) => {
+          if (s.summary) {
+            const score = s.summary.priority_score;
+            if (score) {
+              totalPriority += score;
+              priorityCount++;
+              if (score > patientMaxPriority) patientMaxPriority = score;
+            }
+            if (!s.summary.reviewed) {
+              pendingCount++;
+            }
+          }
+        });
+
+        // Track highest priority per patient for the dashboard list
+        if (patientMaxPriority > 0) {
+          highPriorityPatients.push({
+            ...patient,
+            maxPriority: patientMaxPriority,
+            sessionCount: sessions.length,
+          });
+        }
+      });
+
+      // 4. Update stat cards
+      $("#statFiles").textContent = totalSessions;
+      $("#statPending").textContent = pendingCount || "\u2014";
+      $("#statPriority").textContent = priorityCount
+        ? (totalPriority / priorityCount).toFixed(1)
+        : "\u2014";
+
+      // 5. Render patients sorted by priority (highest first)
+      highPriorityPatients.sort((a, b) => b.maxPriority - a.maxPriority);
+      renderDoctorRecentPatients(
+        highPriorityPatients.length
+          ? highPriorityPatients.slice(0, 5)
+          : state.patients.slice(0, 5)
+      );
+      renderDoctorRecentActivity(allSummaries);
+
     } catch (err) {
-      if (err.name !== "AbortError") console.error(err);
+      if (err.name !== "AbortError") console.error("Doctor dashboard error:", err);
     }
   }
 
-  function renderDoctorRecentPatients(patients) {
+    function renderDoctorRecentPatients(patients) {
     const el = $("#recentChats");
     if (!patients.length) {
       el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">👥</div><div class="empty-state-title">No patients yet</div><div class="empty-state-sub">Patients will appear once they register</div></div>';
@@ -594,19 +644,68 @@ const App = (() => {
     el.innerHTML = patients.map((p) => {
       const name = p.profile?.full_name || p.email || "Unknown";
       const initial = name[0]?.toUpperCase() || "?";
+      const score = p.maxPriority;
+      const pc = priorityClass(score);
+      const sessions = p.sessionCount || 0;
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="view-patient" data-patient-id="${p.id}" tabindex="0" role="button">
         <div class="patient-card-avatar" style="width:32px;height:32px;font-size:13px">${esc(initial)}</div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;color:var(--text)">${esc(name)}</div>
-          <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${esc(p.email)}</div>
+          <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${esc(p.email)}${sessions ? ` · ${sessions} sessions` : ""}</div>
         </div>
+        ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
       </div>`;
     }).join("");
   }
 
-  function renderDoctorRecentActivity() {
+    function renderDoctorRecentActivity(allSummaries) {
     const el = $("#recentFiles");
-    el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">📊</div><div class="empty-state-title">Doctor Dashboard</div><div class="empty-state-sub">Select a patient to view their history and prescribe</div></div>';
+
+    // Flatten all sessions with patient info, sort by date
+    const allSessions = [];
+    allSummaries.forEach((sessions, idx) => {
+      const patient = state.patients[idx];
+      sessions.forEach((s) => {
+        allSessions.push({
+          ...s,
+          patientName: patient?.profile?.full_name || patient?.email || "Unknown",
+          patientId: patient?.id,
+        });
+      });
+    });
+
+    // Sort by created_at descending
+    allSessions.sort((a, b) => {
+      const da = new Date(a.created_at || 0);
+      const db = new Date(b.created_at || 0);
+      return db - da;
+    });
+
+    const recent = allSessions.slice(0, 5);
+
+    if (!recent.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">📊</div><div class="empty-state-title">No activity yet</div><div class="empty-state-sub">Patient consultations will appear here</div></div>';
+      return;
+    }
+
+    el.innerHTML = recent.map((s) => {
+      const score = s.summary?.priority_score;
+      const pc = priorityClass(score);
+      const msgCount = s.messages?.length || 0;
+      const lastMsg = s.messages?.slice().reverse().find((m) => m.sender !== "system");
+      const preview = esc((lastMsg?.text || "No messages").substring(0, 40));
+
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="view-patient" data-patient-id="${s.patientId}" tabindex="0" role="button">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <span style="font-size:12px;color:var(--text);font-weight:500">${esc(s.patientName)}</span>
+            <span style="font-size:10px;color:var(--text-faint);font-family:var(--mono)">${esc(s.session_id)}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}… · ${msgCount} msgs · ${formatDate(s.created_at)}</div>
+        </div>
+        ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
+      </div>`;
+    }).join("");
   }
 
   function renderRecentChats(chats) {
