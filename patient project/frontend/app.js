@@ -1,20 +1,5 @@
 "use strict";
 
-/**
- * MediConnect Patient Portal — Application Module
- *
- * Production-ready single-page application with:
- * - IIFE module pattern (zero global pollution)
- * - Centralized state management
- * - Event delegation via data-action attributes
- * - XSS sanitization on all user content
- * - AbortController for request cancellation
- * - Accessibility: ARIA, keyboard navigation, focus management
- * - Offline detection & connection status banner
- * - File size validation & upload guards
- * - Animated typing indicators
- * - Promise-based confirm dialogs
- */
 const App = (() => {
   // ═══════════════════════════════════════
   // CONFIG
@@ -41,28 +26,28 @@ const App = (() => {
   // ═══════════════════════════════════════
   const state = {
     token: null,
-    user: null,
+    user: null, // { email, role }
     currentScreen: "dashboard",
     currentSessionId: null,
     sessions: [],
     files: [],
+    patients: [],
+    selectedPatientId: null,
     isOnline: navigator.onLine,
     isSending: false,
     modalFile: null,
     confirmResolver: null,
     pollTimer: null,
     abortControllers: new Map(),
+    patientSummariesCache: {},
   };
 
   // ═══════════════════════════════════════
-  // DOM HELPERS
+  // HELPERS
   // ═══════════════════════════════════════
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
   const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
-  // ═══════════════════════════════════════
-  // XSS SANITIZER
-  // ═══════════════════════════════════════
   const _escDiv = document.createElement("div");
   function esc(str) {
     if (!str) return "";
@@ -70,9 +55,6 @@ const App = (() => {
     return _escDiv.innerHTML;
   }
 
-  // ═══════════════════════════════════════
-  // UTILITIES
-  // ═══════════════════════════════════════
   function genId(prefix = "sess") {
     const seg = () => Math.random().toString(36).substring(2, 7);
     return `${prefix}_${seg()}${seg()}`;
@@ -82,24 +64,17 @@ const App = (() => {
     if (!d) return "";
     try {
       return new Date(d).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
+        day: "numeric", month: "short", year: "numeric",
       });
-    } catch {
-      return "";
-    }
+    } catch { return ""; }
   }
 
   function formatTime(d) {
     try {
       return (d ? new Date(d) : new Date()).toLocaleTimeString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
+        hour: "2-digit", minute: "2-digit",
       });
-    } catch {
-      return "";
-    }
+    } catch { return ""; }
   }
 
   function priorityClass(score) {
@@ -112,10 +87,7 @@ const App = (() => {
 
   function debounce(fn, ms) {
     let t;
-    return (...args) => {
-      clearTimeout(t);
-      t = setTimeout(() => fn(...args), ms);
-    };
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   }
 
   function validateEmail(e) {
@@ -126,74 +98,71 @@ const App = (() => {
     return file && file.size <= CONFIG.MAX_FILE_SIZE;
   }
 
-function parseApiError(data) {
-  if (!data) return "Unknown error";
-  if (typeof data === "string") return data;
-
-  // FastAPI string detail
-  if (typeof data.detail === "string") return data.detail;
-
-  // FastAPI validation error array: { detail: [{ msg, loc, type }] }
-  if (Array.isArray(data.detail)) {
-    return data.detail
-      .map((err) => {
-        if (typeof err === "string") return err;
-        const field = err.loc ? err.loc.slice(-1)[0] : "";
-        return field ? `${field}: ${err.msg}` : err.msg || JSON.stringify(err);
-      })
-      .join("; ");
-  }
-
-  // Other common shapes
-  if (typeof data.detail === "object") return JSON.stringify(data.detail);
-  if (typeof data.message === "string") return data.message;
-  if (typeof data.error === "string") return data.error;
-
-  return JSON.stringify(data);
-}
-
   function autoResize(el) {
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   }
 
+  function isDoctor() {
+    return state.user?.role === "doctor";
+  }
+
+  function parseApiError(data) {
+    if (!data) return "Unknown error";
+    if (typeof data === "string") return data;
+    if (typeof data.detail === "string") return data.detail;
+    if (Array.isArray(data.detail)) {
+      return data.detail
+        .map((err) => {
+          if (typeof err === "string") return err;
+          const field = err.loc ? err.loc.slice(-1)[0] : "";
+          return field ? `${field}: ${err.msg}` : err.msg || JSON.stringify(err);
+        })
+        .join("; ");
+    }
+    if (typeof data.detail === "object") return JSON.stringify(data.detail);
+    if (typeof data.message === "string") return data.message;
+    if (typeof data.error === "string") return data.error;
+    return JSON.stringify(data);
+  }
+
+  function decodeJWT(token) {
+    try {
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const json = decodeURIComponent(
+        atob(base64).split("").map((c) =>
+          "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)
+        ).join("")
+      );
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+
   // ═══════════════════════════════════════
-  // API LAYER
+  // API
   // ═══════════════════════════════════════
   function abortPrevious(key) {
-    if (state.abortControllers.has(key)) {
-      state.abortControllers.get(key).abort();
-    }
-    const controller = new AbortController();
-    state.abortControllers.set(key, controller);
-    return controller.signal;
+    if (state.abortControllers.has(key)) state.abortControllers.get(key).abort();
+    const c = new AbortController();
+    state.abortControllers.set(key, c);
+    return c.signal;
   }
 
   async function api(path, opts = {}) {
     const headers = { ...(opts.headers || {}) };
-    if (!(opts.body instanceof FormData)) {
-      headers["Content-Type"] = "application/json";
-    }
+    if (!(opts.body instanceof FormData)) headers["Content-Type"] = "application/json";
     if (state.token) headers["Authorization"] = `Bearer ${state.token}`;
-
-    const signal =
-      opts.signal || (opts._abortKey ? abortPrevious(opts._abortKey) : undefined);
-
+    const signal = opts.signal || (opts._abortKey ? abortPrevious(opts._abortKey) : undefined);
     try {
-      const res = await fetch(CONFIG.API_BASE + path, {
-        ...opts,
-        headers,
-        signal,
-      });
-
-      if (res.status === 401) {
-        handleLogout(true);
-        throw new Error("Session expired");
-      }
-
+      const res = await fetch(CONFIG.API_BASE + path, { ...opts, headers, signal });
+      if (res.status === 401) { handleLogout(true); throw new Error("Session expired"); }
       return res;
     } catch (err) {
       if (err.name === "AbortError") throw err;
+      console.error(`[API] ${opts.method || "GET"} ${path}:`, err.message);
       throw err;
     }
   }
@@ -201,9 +170,7 @@ function parseApiError(data) {
   async function apiJSON(path, opts = {}) {
     const res = await api(path, opts);
     const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data?.detail || `Error ${res.status}`);
-    }
+    if (!res.ok) throw new Error(parseApiError(data));
     return data;
   }
 
@@ -212,26 +179,22 @@ function parseApiError(data) {
   }
 
   // ═══════════════════════════════════════
-  // TOAST NOTIFICATIONS
+  // TOAST
   // ═══════════════════════════════════════
   function toast(msg, type = "info") {
-    const container = $("#toast-container");
+    const c = $("#toast-container");
     const el = document.createElement("div");
     el.className = `toast ${esc(type)}`;
     el.setAttribute("role", "status");
     el.innerHTML = `<div class="toast-dot"></div><span>${esc(msg)}</span><button class="toast-close" aria-label="Dismiss">&times;</button>`;
-    container.appendChild(el);
-
-    const dismiss = () => {
-      el.classList.add("removing");
-      setTimeout(() => el.remove(), 260);
-    };
+    c.appendChild(el);
+    const dismiss = () => { el.classList.add("removing"); setTimeout(() => el.remove(), 260); };
     el.querySelector(".toast-close").addEventListener("click", dismiss);
     setTimeout(dismiss, CONFIG.TOAST_DURATION);
   }
 
   // ═══════════════════════════════════════
-  // CONFIRM DIALOG
+  // CONFIRM
   // ═══════════════════════════════════════
   function confirm(title, body) {
     return new Promise((resolve) => {
@@ -245,14 +208,11 @@ function parseApiError(data) {
 
   function closeConfirm(result) {
     $("#confirmModal").classList.remove("open");
-    if (state.confirmResolver) {
-      state.confirmResolver(result);
-      state.confirmResolver = null;
-    }
+    if (state.confirmResolver) { state.confirmResolver(result); state.confirmResolver = null; }
   }
 
   // ═══════════════════════════════════════
-  // CONNECTION STATUS
+  // CONNECTION
   // ═══════════════════════════════════════
   function updateConnectionStatus() {
     const banner = $("#connBanner");
@@ -272,18 +232,14 @@ function parseApiError(data) {
     $("#registerForm").style.display = mode === "register" ? "block" : "none";
     $("#loginError").textContent = "";
     $("#registerError").textContent = "";
-    const firstInput = mode === "login" ? "#loginEmail" : "#regEmail";
-    setTimeout(() => $(firstInput)?.focus(), 100);
+    setTimeout(() => $(mode === "login" ? "#loginEmail" : "#regEmail")?.focus(), 100);
   }
 
   function showAuthError(id, msg) {
     const el = $(`#${id}`);
     el.textContent = msg;
     el.setAttribute("aria-live", "assertive");
-    setTimeout(() => {
-      el.textContent = "";
-      el.removeAttribute("aria-live");
-    }, 5000);
+    setTimeout(() => { el.textContent = ""; el.removeAttribute("aria-live"); }, 5000);
   }
 
   function setButtonLoading(btn, loading) {
@@ -301,8 +257,8 @@ function parseApiError(data) {
     e.preventDefault();
     const email = $("#loginEmail").value.trim();
     const pass = $("#loginPassword").value;
-
     let valid = true;
+
     if (!validateEmail(email)) {
       $("#loginEmail").setAttribute("aria-invalid", "true");
       $("#loginEmailHint").classList.add("visible");
@@ -335,24 +291,40 @@ function parseApiError(data) {
         body: form,
       });
       const data = await res.json();
-
-      if (!res.ok) {
-        showAuthError("loginError", data.detail || "Invalid credentials");
-        return;
-      }
+      if (!res.ok) { showAuthError("loginError", data.detail || "Invalid credentials"); return; }
 
       state.token = data.access_token;
-      state.user = { email };
+
+      // Detect role from JWT payload
+      const payload = decodeJWT(state.token);
+      const role = payload?.role || "patient";
+
+      state.user = { email, role };
       localStorage.setItem(CONFIG.TOKEN_KEY, state.token);
       localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(state.user));
+
+      // If JWT didn't have role, try detecting via doctor endpoint
+      if (!payload?.role) {
+        await detectRole();
+      }
+
       enterApp();
     } catch {
-      showAuthError(
-        "loginError",
-        "Could not reach server. Is the backend running?"
-      );
+      showAuthError("loginError", `Cannot connect to ${CONFIG.API_BASE}. Is the backend running?`);
     } finally {
       setButtonLoading(btn, false);
+    }
+  }
+
+  async function detectRole() {
+    try {
+      const res = await api("/doctor/patients/");
+      if (res.ok) {
+        state.user.role = "doctor";
+        localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(state.user));
+      }
+    } catch {
+      state.user.role = "patient";
     }
   }
 
@@ -362,8 +334,8 @@ function parseApiError(data) {
     const pass = $("#regPassword").value;
     const policy = $("#regPolicy").checked;
     const baa = $("#regBaa").checked;
-
     let valid = true;
+
     if (!validateEmail(email)) {
       $("#regEmail").setAttribute("aria-invalid", "true");
       $("#regEmailHint").classList.add("visible");
@@ -380,10 +352,7 @@ function parseApiError(data) {
       $("#regPassword").removeAttribute("aria-invalid");
       $("#regPasswordHint").classList.remove("visible");
     }
-    if (!policy) {
-      showAuthError("registerError", "Please accept the Terms of Service");
-      valid = false;
-    }
+    if (!policy) { showAuthError("registerError", "Please accept the Terms of Service"); valid = false; }
     if (!valid) return;
 
     const btn = $("#registerBtn");
@@ -392,17 +361,11 @@ function parseApiError(data) {
     try {
       await apiJSON("/users/", {
         method: "POST",
-        body: JSON.stringify({
-          email,
-          password: pass,
-          is_policy_accepted: policy,
-          has_signed_baa: baa,
-        }),
+        body: JSON.stringify({ email, password: pass, is_policy_accepted: policy, has_signed_baa: baa }),
       });
       toast("Account created! Please sign in.", "success");
       toggleAuthMode("login");
       $("#loginEmail").value = email;
-      $("#loginEmail").focus();
     } catch (err) {
       showAuthError("registerError", err.message || "Registration failed");
     } finally {
@@ -413,12 +376,7 @@ function parseApiError(data) {
   function enterApp() {
     $("#authWrap").style.display = "none";
     $("#mainApp").style.display = "flex";
-    const email = state.user?.email || "";
-    const initial = email[0]?.toUpperCase() || "P";
-    $("#sidebarEmail").textContent = email;
-    $("#sidebarAvatar").textContent = initial;
-    $("#profileEmail").textContent = email;
-    $("#profileAvatar").textContent = initial;
+    applyRole();
     showScreen("dashboard");
     loadDashboard();
   }
@@ -429,6 +387,8 @@ function parseApiError(data) {
     state.currentSessionId = null;
     state.sessions = [];
     state.files = [];
+    state.patients = [];
+    state.selectedPatientId = null;
     localStorage.removeItem(CONFIG.TOKEN_KEY);
     localStorage.removeItem(CONFIG.USER_KEY);
     stopPolling();
@@ -438,64 +398,105 @@ function parseApiError(data) {
     $("#authWrap").style.display = "flex";
     $("#mainApp").style.display = "none";
     closeSidebar();
-
-    $$(".auth-card input").forEach((i) => {
-      if (i.type !== "checkbox") i.value = "";
-    });
+    $$(".auth-card input").forEach((i) => { if (i.type !== "checkbox") i.value = ""; });
     $$(".auth-card input[type=checkbox]").forEach((i) => (i.checked = false));
-
-    toast(
-      expired ? "Session expired. Please sign in again." : "Signed out",
-      expired ? "error" : "info"
-    );
+    toast(expired ? "Session expired. Please sign in again." : "Signed out", expired ? "error" : "info");
     toggleAuthMode("login");
+  }
+
+  // ═══════════════════════════════════════
+  // ROLE-BASED UI
+  // ═══════════════════════════════════════
+  function applyRole() {
+    const email = state.user?.email || "";
+    const role = state.user?.role || "patient";
+    const initial = email[0]?.toUpperCase() || "U";
+    const doc = role === "doctor";
+    const roleLabel = doc ? "Doctor" : "Patient";
+
+    // Sidebar
+    $("#sidebarEmail").textContent = email;
+    $("#sidebarAvatar").textContent = initial;
+    $("#sidebarAvatar").classList.toggle("doctor-avatar", doc);
+    $("#sidebarRole").textContent = `${roleLabel} · Sign out`;
+
+    // Profile
+    $("#profileEmail").textContent = email;
+    $("#profileAvatar").textContent = initial;
+    $("#profileAvatar").classList.toggle("doctor-avatar", doc);
+    $("#profileBadge").textContent = roleLabel;
+    $("#profileBadge").classList.toggle("doctor-badge", doc);
+
+    // Show/hide role-specific nav items
+    $$(".role-patient").forEach((el) => {
+      el.style.display = doc ? "none" : "";
+    });
+    $$(".role-doctor").forEach((el) => {
+      el.style.display = doc ? "" : "none";
+    });
+
+    // Dashboard labels for doctor
+    if (doc) {
+      $("#statSessionsLabel").textContent = "Total Patients";
+      $("#statSessionsSub").textContent = "Registered patients";
+      $("#statFilesLabel").textContent = "Total Sessions";
+      $("#statFilesSub").textContent = "Across all patients";
+      $("#recentChatsTitle").textContent = "High Priority Patients";
+      $("#recentFilesTitle").textContent = "Recent Activity";
+      $("#viewAllChatsBtn").setAttribute("data-action", "go-patients");
+      $("#viewAllChatsBtn").textContent = "View all patients";
+      $("#viewAllFilesBtn").style.display = "none";
+    } else {
+      $("#statSessionsLabel").textContent = "Total Sessions";
+      $("#statSessionsSub").textContent = "AI consultations";
+      $("#statFilesLabel").textContent = "Medical Files";
+      $("#statFilesSub").textContent = "Uploaded records";
+      $("#recentChatsTitle").textContent = "Recent Consultations";
+      $("#recentFilesTitle").textContent = "Recent Files";
+      $("#viewAllChatsBtn").setAttribute("data-action", "go-chat");
+      $("#viewAllChatsBtn").textContent = "View all";
+      $("#viewAllFilesBtn").style.display = "";
+    }
+
+    console.log(`[App] Role applied: ${roleLabel}`);
   }
 
   // ═══════════════════════════════════════
   // NAVIGATION
   // ═══════════════════════════════════════
   const SCREEN_META = {
-    dashboard: ["Overview", "Your health at a glance"],
+    dashboard: ["Overview", "Your portal at a glance"],
     chat: ["AI Consultation", "Talk to your medical assistant"],
     files: ["Medical Files", "Your uploaded records and documents"],
     profile: ["Profile", "Manage your account and health info"],
+    patients: ["All Patients", "Monitor and manage patient cases"],
+    "patient-detail": ["Patient Detail", "Review patient history and prescribe"],
   };
 
   function showScreen(name) {
     if (!SCREEN_META[name]) return;
     state.currentScreen = name;
 
-    $$(".screen").forEach((s) => {
-      s.classList.remove("active");
-      s.style.display = "none";
-    });
+    $$(".screen").forEach((s) => { s.classList.remove("active"); s.style.display = "none"; });
     const screen = $(`#screen-${name}`);
     screen.style.display = name === "chat" ? "flex" : "block";
     requestAnimationFrame(() => screen.classList.add("active"));
 
     $$(".nav-item[data-screen]").forEach((n) => {
-      const isCurrent = n.dataset.screen === name;
-      n.setAttribute("aria-current", isCurrent ? "page" : "false");
+      n.setAttribute("aria-current", n.dataset.screen === name ? "page" : "false");
     });
 
     const [title, sub] = SCREEN_META[name];
     $("#topbarTitle").innerHTML = `${esc(title)}<span>${esc(sub)}</span>`;
 
     if (name === "files") loadFiles();
-    if (name === "chat") {
-      loadSessions();
-      startPolling();
-    } else {
-      stopPolling();
-    }
+    if (name === "chat") { loadSessions(); startPolling(); } else { stopPolling(); }
     if (name === "dashboard") loadDashboard();
+    if (name === "patients") loadPatients();
 
     closeSidebar();
   }
 
-  // ═══════════════════════════════════════
-  // SIDEBAR (MOBILE)
-  // ═══════════════════════════════════════
   function openSidebar() {
     $("#sidebar").classList.add("open");
     $("#sidebarOverlay").classList.add("open");
@@ -512,35 +513,31 @@ function parseApiError(data) {
   // DASHBOARD
   // ═══════════════════════════════════════
   async function loadDashboard() {
+    if (isDoctor()) {
+      await loadDoctorDashboard();
+    } else {
+      await loadPatientDashboard();
+    }
+  }
+
+  async function loadPatientDashboard() {
     try {
       const [sessRes, filesRes] = await Promise.allSettled([
         api("/users/me/chats/", { _abortKey: "dash-chats" }),
         api("/users/me/media/", { _abortKey: "dash-media" }),
       ]);
-
-      if (sessRes.status === "fulfilled" && sessRes.value.ok) {
-        state.sessions = await sessRes.value.json();
-      }
-      if (filesRes.status === "fulfilled" && filesRes.value.ok) {
-        state.files = await filesRes.value.json();
-      }
+      if (sessRes.status === "fulfilled" && sessRes.value.ok) state.sessions = await sessRes.value.json();
+      if (filesRes.status === "fulfilled" && filesRes.value.ok) state.files = await filesRes.value.json();
 
       $("#statSessions").textContent = state.sessions.length;
       $("#statFiles").textContent = state.files.length;
 
-      const withScore = state.sessions.filter(
-        (s) => s.summary?.priority_score
-      );
-      const pending = state.sessions.filter(
-        (s) => s.summary && !s.summary.reviewed
-      ).length;
+      const withScore = state.sessions.filter((s) => s.summary?.priority_score);
+      const pending = state.sessions.filter((s) => s.summary && !s.summary.reviewed).length;
       $("#statPending").textContent = pending || "\u2014";
 
       if (withScore.length) {
-        const avg = (
-          withScore.reduce((a, s) => a + (s.summary.priority_score || 0), 0) /
-          withScore.length
-        ).toFixed(1);
+        const avg = (withScore.reduce((a, s) => a + (s.summary.priority_score || 0), 0) / withScore.length).toFixed(1);
         $("#statPriority").textContent = avg;
       } else {
         $("#statPriority").textContent = "\u2014";
@@ -549,73 +546,438 @@ function parseApiError(data) {
       renderRecentChats(state.sessions.slice(0, 4));
       renderRecentFiles(state.files.slice(0, 4));
     } catch (err) {
-      if (err.name !== "AbortError") console.error("Dashboard load error:", err);
+      if (err.name !== "AbortError") console.error(err);
     }
+  }
+
+  async function loadDoctorDashboard() {
+    try {
+      const res = await api("/doctor/patients/", { _abortKey: "doc-dash" });
+      if (res.ok) {
+        state.patients = await res.json();
+      }
+
+      // Count totals
+      let totalSessions = 0;
+      let totalPriority = 0;
+      let priorityCount = 0;
+      let pending = 0;
+
+      // We don't have full session data from /doctor/patients/ alone,
+      // so show patient count in first stat
+      $("#statSessions").textContent = state.patients.length;
+      $("#statFiles").textContent = "\u2014";
+      $("#statPending").textContent = "\u2014";
+      $("#statPriority").textContent = "\u2014";
+
+      // Show patients badge
+      const badge = $("#patientsBadge");
+      if (state.patients.length) {
+        badge.textContent = state.patients.length;
+        badge.style.display = "";
+      }
+
+      // Render recent patients in dashboard
+      renderDoctorRecentPatients(state.patients.slice(0, 5));
+      renderDoctorRecentActivity();
+    } catch (err) {
+      if (err.name !== "AbortError") console.error(err);
+    }
+  }
+
+  function renderDoctorRecentPatients(patients) {
+    const el = $("#recentChats");
+    if (!patients.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">👥</div><div class="empty-state-title">No patients yet</div><div class="empty-state-sub">Patients will appear once they register</div></div>';
+      return;
+    }
+    el.innerHTML = patients.map((p) => {
+      const name = p.profile?.full_name || p.email || "Unknown";
+      const initial = name[0]?.toUpperCase() || "?";
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="view-patient" data-patient-id="${p.id}" tabindex="0" role="button">
+        <div class="patient-card-avatar" style="width:32px;height:32px;font-size:13px">${esc(initial)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text)">${esc(name)}</div>
+          <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${esc(p.email)}</div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderDoctorRecentActivity() {
+    const el = $("#recentFiles");
+    el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">📊</div><div class="empty-state-title">Doctor Dashboard</div><div class="empty-state-sub">Select a patient to view their history and prescribe</div></div>';
   }
 
   function renderRecentChats(chats) {
     const el = $("#recentChats");
     if (!chats.length) {
-      el.innerHTML =
-        '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">💬</div><div class="empty-state-title">No consultations yet</div><div class="empty-state-sub">Start a conversation with the AI assistant</div></div>';
+      el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">💬</div><div class="empty-state-title">No consultations yet</div><div class="empty-state-sub">Start a conversation with the AI assistant</div></div>';
       return;
     }
-    el.innerHTML = chats
-      .map((s) => {
-        const last = s.messages
-          ?.slice()
-          .reverse()
-          .find((m) => m.sender !== "system");
-        const score = s.summary?.priority_score;
-        const pc = priorityClass(score);
-        const preview = esc(
-          (last?.text || "No messages yet").substring(0, 60)
-        );
-        return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="open-session" data-session-id="${esc(s.session_id)}" tabindex="0" role="button">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;color:var(--text);font-family:var(--mono);margin-bottom:2px">${esc(s.session_id)}</div>
-            <div style="font-size:12px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}…</div>
-          </div>
-          ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
-        </div>`;
-      })
-      .join("");
+    el.innerHTML = chats.map((s) => {
+      const last = s.messages?.slice().reverse().find((m) => m.sender !== "system");
+      const score = s.summary?.priority_score;
+      const pc = priorityClass(score);
+      const preview = esc((last?.text || "No messages yet").substring(0, 60));
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="open-session" data-session-id="${esc(s.session_id)}" tabindex="0" role="button">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text);font-family:var(--mono);margin-bottom:2px">${esc(s.session_id)}</div>
+          <div style="font-size:12px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}…</div>
+        </div>
+        ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
+      </div>`;
+    }).join("");
   }
 
   function renderRecentFiles(files) {
     const el = $("#recentFiles");
     if (!files.length) {
-      el.innerHTML =
-        '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">📄</div><div class="empty-state-title">No files uploaded</div><div class="empty-state-sub">Upload medical records, prescriptions</div></div>';
+      el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">📄</div><div class="empty-state-title">No files uploaded</div><div class="empty-state-sub">Upload medical records, prescriptions</div></div>';
       return;
     }
-    el.innerHTML = files
-      .map((f) => {
-        const icon =
-          f.file_type === "audio"
-            ? "🎵"
-            : f.file_type?.includes("pdf")
-              ? "📄"
-              : "🖼";
-        return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-          <span style="font-size:20px" aria-hidden="true">${icon}</span>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.file_name)}</div>
-            <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${formatDate(f.created_at)}</div>
-          </div>
-        </div>`;
-      })
-      .join("");
+    el.innerHTML = files.map((f) => {
+      const icon = f.file_type === "audio" ? "🎵" : f.file_type?.includes("pdf") ? "📄" : "🖼";
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:20px" aria-hidden="true">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.file_name)}</div>
+          <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${formatDate(f.created_at)}</div>
+        </div>
+      </div>`;
+    }).join("");
   }
 
   // ═══════════════════════════════════════
-  // CHAT
+  // DOCTOR: PATIENTS LIST
+  // ═══════════════════════════════════════
+  async function loadPatients() {
+    try {
+      const res = await api("/doctor/patients/", { _abortKey: "load-patients" });
+      if (res.ok) state.patients = await res.json();
+      renderPatientsList();
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.error(err);
+        toast("Failed to load patients", "error");
+      }
+    }
+  }
+
+  function renderPatientsList() {
+    const el = $("#patientsList");
+    if (!state.patients.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:60px 20px"><div class="empty-state-icon" aria-hidden="true">👥</div><div class="empty-state-title">No patients found</div><div class="empty-state-sub">Patients will appear here once they register</div></div>';
+      return;
+    }
+    el.innerHTML = state.patients.map((p) => {
+      const name = p.profile?.full_name || p.email?.split("@")[0] || "Unknown";
+      const initial = name[0]?.toUpperCase() || "?";
+      const status = p.profile?.current_status || "unknown";
+      const blood = p.profile?.blood_group || "—";
+
+      return `<div class="patient-card" data-action="view-patient" data-patient-id="${p.id}" tabindex="0" role="listitem">
+        <div class="patient-card-avatar">${esc(initial)}</div>
+        <div class="patient-card-info">
+          <div class="patient-card-name">${esc(name)}</div>
+          <div class="patient-card-email">${esc(p.email)}</div>
+        </div>
+        <div class="patient-card-meta">
+          <div class="patient-card-stat">
+            <div class="patient-card-stat-value">${esc(blood)}</div>
+            <div class="patient-card-stat-label">Blood</div>
+          </div>
+          <div class="patient-card-stat">
+            <div class="patient-card-stat-value" style="font-size:13px">
+              <span class="priority ${status === 'critical' ? 'high' : status === 'monitoring' ? 'medium' : 'low'}">${esc(status)}</span>
+            </div>
+            <div class="patient-card-stat-label">Status</div>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  // ═══════════════════════════════════════
+  // DOCTOR: PATIENT DETAIL
+  // ═══════════════════════════════════════
+  async function viewPatient(patientId) {
+    state.selectedPatientId = patientId;
+    showScreen("patient-detail");
+
+    const patient = state.patients.find((p) => p.id === patientId);
+    const name = patient?.profile?.full_name || patient?.email || "Unknown";
+    const initial = name[0]?.toUpperCase() || "?";
+
+    // Render header
+    $("#patientDetailHeader").innerHTML = `
+      <div class="patient-detail-header">
+        <div class="profile-avatar" style="width:56px;height:56px;font-size:22px">${esc(initial)}</div>
+        <div class="profile-info">
+          <div class="profile-name">${esc(name)}</div>
+          <div class="profile-email">${esc(patient?.email || "")}</div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            ${patient?.profile?.blood_group ? `<span class="priority low">${esc(patient.profile.blood_group)}</span>` : ""}
+            ${patient?.profile?.current_status ? `<span class="priority ${patient.profile.current_status === 'critical' ? 'high' : patient.profile.current_status === 'monitoring' ? 'medium' : 'low'}">${esc(patient.profile.current_status)}</span>` : ""}
+          </div>
+        </div>
+      </div>`;
+
+    // Load summaries
+    await loadPatientSummaries(patientId);
+    await loadPatientFiles(patientId);
+
+    // Show summaries tab by default
+    activateDetailTab("summaries");
+  }
+
+  async function loadPatientSummaries(patientId) {
+  const el = $("#patientDetailSummaries");
+  el.innerHTML = '<div style="text-align:center;padding:20px"><span class="spinner"></span></div>';
+
+  try {
+    const data = await apiJSON(`/doctor/patients/${patientId}/summaries`);
+
+    // Cache for chat viewer
+    state.patientSummariesCache[patientId] = data;
+
+    if (!data.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:40px 20px"><div class="empty-state-icon" aria-hidden="true">📋</div><div class="empty-state-title">No chat sessions</div><div class="empty-state-sub">This patient hasn\'t started any AI consultations yet</div></div>';
+      return;
+    }
+
+    el.innerHTML = data.map((s) => {
+      const score = s.summary?.priority_score;
+      const pc = priorityClass(score);
+      const summaryFields = s.summary ? Object.entries(s.summary) : [];
+      const msgCount = s.messages?.length || 0;
+
+      return `<div class="summary-list-card">
+        <div class="summary-list-header">
+          <span class="summary-list-session">${esc(s.session_id)}</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="cv-msg-count">${msgCount} msgs</span>
+            ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : '<span class="priority low">No score</span>'}
+          </div>
+        </div>
+        <div class="summary-list-body">
+          ${summaryFields.slice(0, 6).map(([k, v]) => `
+            <div class="summary-list-field">
+              <span class="summary-list-key">${esc(k.replace(/_/g, " "))}</span>
+              <span class="summary-list-val">${esc(String(v).substring(0, 80))}</span>
+            </div>`).join("")}
+        </div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:8px;font-family:var(--mono)">
+          ${msgCount} messages · ${formatDate(s.created_at)}
+        </div>
+        <div class="summary-list-actions">
+          <button class="btn btn-purple" data-action="prescribe" data-session-id="${esc(s.session_id)}" data-patient-id="${patientId}" type="button">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            Prescribe
+          </button>
+          <button class="btn btn-ghost" data-action="view-chat-readonly" data-session-id="${esc(s.session_id)}" data-patient-id="${patientId}" type="button">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            View Chat
+          </button>
+        </div>
+      </div>`;
+    }).join("");
+  } catch (err) {
+    el.innerHTML = `<div class="empty-state" style="padding:40px 20px"><div class="empty-state-title">Error loading summaries</div><div class="empty-state-sub">${esc(err.message)}</div></div>`;
+  }
+}
+  async function loadPatientFiles(patientId) {
+    const el = $("#patientDetailFiles");
+    el.innerHTML = '<div style="text-align:center;padding:20px"><span class="spinner"></span></div>';
+
+    try {
+      const data = await apiJSON(`/doctor/patients/${patientId}/files`);
+
+      if (!data.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:40px 20px"><div class="empty-state-icon" aria-hidden="true">📂</div><div class="empty-state-title">No files</div><div class="empty-state-sub">This patient hasn\'t uploaded any files yet</div></div>';
+        return;
+      }
+
+      el.innerHTML = `<div class="files-grid">${data.map((f) => {
+        const info = getFileTypeInfo(f);
+        const hasTranscript = f.transcript && f.transcript !== "User Uploaded Record";
+        return `<div class="file-card" data-action="view-file-direct" data-view-link="${esc(f.drive_view_link || "")}" tabindex="0">
+          <div class="file-icon ${info.cls}" aria-hidden="true">${info.svg}</div>
+          <div class="file-name">${esc(f.file_name)}</div>
+          <div class="file-meta">${formatDate(f.created_at)} · ${esc(f.file_type || "file")}</div>
+          ${hasTranscript ? `<div class="file-transcript">${esc(f.transcript)}</div>` : ""}
+        </div>`;
+      }).join("")}</div>`;
+    } catch (err) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-state-title">Error</div><div class="empty-state-sub">${esc(err.message)}</div></div>`;
+    }
+  }
+
+  function activateDetailTab(tabName) {
+    $$(".detail-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === tabName));
+    $("#patientDetailSummaries").style.display = tabName === "summaries" ? "" : "none";
+    $("#patientDetailFiles").style.display = tabName === "patient-files" ? "" : "none";
+  }
+
+  // ═══════════════════════════════════════
+  // DOCTOR: PRESCRIPTION
+  // ═══════════════════════════════════════
+  function openPrescribeModal(sessionId, patientId) {
+    const patient = state.patients.find((p) => p.id === Number(patientId));
+    const name = patient?.profile?.full_name || patient?.email || "Patient";
+    $("#prescribeModalSub").textContent = `Prescribing for ${name} — Session: ${sessionId}`;
+    $("#rxSessionId").value = sessionId;
+    $("#rxDoctorNotes").value = "";
+    $("#rxFollowUp").value = "7";
+    $("#prescribeModal").classList.add("open");
+    setTimeout(() => $("#rxDoctorNotes").focus(), 150);
+  }
+
+  function closePrescribeModal() {
+    $("#prescribeModal").classList.remove("open");
+  }
+
+  async function submitPrescription(e) {
+    e.preventDefault();
+    const sessionId = $("#rxSessionId").value;
+    const notes = $("#rxDoctorNotes").value.trim();
+    const followUp = parseInt($("#rxFollowUp").value, 10);
+
+    if (!notes) { toast("Doctor notes are required", "error"); return; }
+    if (!followUp || followUp < 1) { toast("Follow-up days must be at least 1", "error"); return; }
+
+    const btn = $("#rxSubmitBtn");
+    setButtonLoading(btn, true);
+
+    try {
+      const data = await apiJSON("/doctor/prescribe/", {
+        method: "POST",
+        body: JSON.stringify({
+          session_id: sessionId,
+          doctor_notes: notes,
+          follow_up_days: followUp,
+        }),
+      });
+      toast("Prescription generated and sent to patient!", "success");
+      closePrescribeModal();
+
+      // Refresh patient detail
+      if (state.selectedPatientId) {
+        await loadPatientSummaries(state.selectedPatientId);
+        await loadPatientFiles(state.selectedPatientId);
+      }
+    } catch (err) {
+      toast(err.message || "Failed to create prescription", "error");
+    } finally {
+      setButtonLoading(btn, false);
+    }
+  }
+// ═══════════════════════════════════════
+// DOCTOR: CHAT VIEWER
+// ═══════════════════════════════════════
+function openChatViewer(sessionId, patientId) {
+  const pid = Number(patientId);
+  const sessions = state.patientSummariesCache[pid] || [];
+  const session = sessions.find((s) => s.session_id === sessionId);
+
+  if (!session) {
+    toast("Session data not found. Try refreshing.", "error");
+    return;
+  }
+
+  const patient = state.patients.find((p) => p.id === pid);
+  const patientName = patient?.profile?.full_name || patient?.email || "Patient";
+  const patientInitial = patientName[0]?.toUpperCase() || "P";
+  const messages = session.messages || [];
+
+  // Set header
+  $("#chatViewerTitle").textContent = `Chat: ${sessionId}`;
+  $("#chatViewerSub").textContent = `${patientName} · ${messages.length} messages · ${formatDate(session.created_at)}`;
+
+  // Render messages
+  const el = $("#chatViewerMessages");
+
+  if (!messages.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:40px 20px"><div class="empty-state-icon" aria-hidden="true">💬</div><div class="empty-state-title">Empty session</div><div class="empty-state-sub">No messages in this conversation</div></div>';
+  } else {
+    let html = "";
+
+    // Count by sender
+    const counts = { patient: 0, ai: 0, system: 0 };
+    messages.forEach((m) => {
+      const sender = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
+      counts[sender]++;
+    });
+
+    messages.forEach((m, i) => {
+      const sender = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
+      const avatarMap = { patient: patientInitial, system: "⚙", ai: "🤖" };
+      const senderLabel = { patient: patientName, system: "System", ai: "AI Assistant" };
+      const text = esc(m.text || "").replace(/\n/g, "<br>");
+
+      html += `<div class="cv-msg ${sender}">
+        <div class="cv-msg-avatar" aria-hidden="true">${avatarMap[sender]}</div>
+        <div>
+          <div class="cv-msg-bubble">${text}</div>
+          <div class="cv-msg-meta">${esc(senderLabel[sender])}${m.timestamp ? " · " + formatTime(m.timestamp) : ""}</div>
+        </div>
+      </div>`;
+    });
+
+    // Append summary if exists
+    if (session.summary) {
+      html += '<div class="cv-divider">Clinical Summary</div>';
+      html += '<div class="cv-summary-inline">';
+      html += '<div class="summary-card-title">— AI Summary —</div>';
+      html += Object.entries(session.summary).map(([k, v]) => {
+        const key = esc(k.replace(/_/g, " "));
+        const val = k === "priority_score"
+          ? `<span class="priority ${priorityClass(v)}">${esc(String(v))}/10</span>`
+          : esc(String(v));
+        return `<div class="summary-row"><span class="summary-key">${key}</span><span class="summary-val">${val}</span></div>`;
+      }).join("");
+      html += "</div>";
+    }
+
+    el.innerHTML = html;
+  }
+
+  // Stats footer
+  const counts = { patient: 0, ai: 0, system: 0 };
+  messages.forEach((m) => {
+    const s = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
+    counts[s]++;
+  });
+  $("#chatViewerStats").innerHTML = `
+    <span class="cv-msg-count"><span class="dot patient-dot"></span>${counts.patient} patient</span>
+    <span class="cv-msg-count"><span class="dot ai-dot"></span>${counts.ai} AI</span>
+    ${counts.system ? `<span class="cv-msg-count"><span class="dot system-dot"></span>${counts.system} system</span>` : ""}
+  `;
+
+  // Prescribe button
+  const rxBtn = $("#chatViewerPrescribeBtn");
+  rxBtn.style.display = "";
+  rxBtn.dataset.sessionId = sessionId;
+  rxBtn.dataset.patientId = patientId;
+
+  // Open modal
+  $("#chatViewerModal").classList.add("open");
+
+  // Scroll to bottom
+  requestAnimationFrame(() => {
+    el.scrollTop = el.scrollHeight;
+  });
+}
+
+function closeChatViewer() {
+  $("#chatViewerModal").classList.remove("open");
+}
+  // ═══════════════════════════════════════
+  // CHAT (Patient)
   // ═══════════════════════════════════════
   async function loadSessions() {
     try {
-      const res = await api("/users/me/chats/", {
-        _abortKey: "load-sessions",
-      });
+      const res = await api("/users/me/chats/", { _abortKey: "load-sessions" });
       if (res.ok) state.sessions = await res.json();
       renderSessionList();
     } catch (err) {
@@ -626,27 +988,19 @@ function parseApiError(data) {
   function renderSessionList() {
     const el = $("#sessionList");
     if (!state.sessions.length) {
-      el.innerHTML =
-        '<div class="empty-state" style="padding:30px 16px"><div class="empty-state-sub">No sessions yet. Click "+ New" to start.</div></div>';
+      el.innerHTML = '<div class="empty-state" style="padding:30px 16px"><div class="empty-state-sub">No sessions yet. Click "+ New" to start.</div></div>';
       return;
     }
-    el.innerHTML = state.sessions
-      .map((s) => {
-        const last = s.messages
-          ?.slice()
-          .reverse()
-          .find((m) => m.sender !== "system");
-        const preview = esc(
-          (last?.text || "No messages").substring(0, 45)
-        );
-        const isActive = s.session_id === state.currentSessionId;
-        return `<div class="session-item" role="option" aria-selected="${isActive}" data-action="open-session" data-session-id="${esc(s.session_id)}" tabindex="0">
-          <div class="session-id">${esc(s.session_id)}</div>
-          <div class="session-preview">${preview}…</div>
-          <div class="session-date">${formatDate(s.created_at)}</div>
-        </div>`;
-      })
-      .join("");
+    el.innerHTML = state.sessions.map((s) => {
+      const last = s.messages?.slice().reverse().find((m) => m.sender !== "system");
+      const preview = esc((last?.text || "No messages").substring(0, 45));
+      const active = s.session_id === state.currentSessionId;
+      return `<div class="session-item" role="option" aria-selected="${active}" data-action="open-session" data-session-id="${esc(s.session_id)}" tabindex="0">
+        <div class="session-id">${esc(s.session_id)}</div>
+        <div class="session-preview">${preview}…</div>
+        <div class="session-date">${formatDate(s.created_at)}</div>
+      </div>`;
+    }).join("");
   }
 
   function createNewSession() {
@@ -675,8 +1029,7 @@ function parseApiError(data) {
   function renderMessages(msgs) {
     const el = $("#chatMessages");
     if (!msgs.length) {
-      el.innerHTML =
-        '<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">🩺</div><div class="empty-state-title">Start the conversation</div><div class="empty-state-sub">Describe your symptoms to the AI assistant</div></div>';
+      el.innerHTML = '<div class="empty-state"><div class="empty-state-icon" aria-hidden="true">🩺</div><div class="empty-state-title">Start the conversation</div><div class="empty-state-sub">Describe your symptoms to the AI assistant</div></div>';
       return;
     }
     el.innerHTML = "";
@@ -689,189 +1042,118 @@ function parseApiError(data) {
     const empty = el.querySelector(".empty-state");
     if (empty) el.innerHTML = "";
 
-    const senderClass =
-      msg.sender === "patient"
-        ? "patient"
-        : msg.sender === "system"
-          ? "system"
-          : "ai";
+    const sc = msg.sender === "patient" ? "patient" : msg.sender === "system" ? "system" : "ai";
     const initial = state.user?.email?.[0]?.toUpperCase() || "P";
     const avatarMap = { patient: initial, system: "⚙", ai: "🤖" };
 
     const div = document.createElement("div");
-    div.className = `msg ${senderClass}`;
+    div.className = `msg ${sc}`;
     div.setAttribute("role", "article");
-
     const text = esc(msg.text || "").replace(/\n/g, "<br>");
-    div.innerHTML = `<div class="msg-avatar" aria-hidden="true">${avatarMap[senderClass]}</div>
+    div.innerHTML = `<div class="msg-avatar" aria-hidden="true">${avatarMap[sc]}</div>
       <div>
         <div class="msg-bubble">${text}</div>
         ${msg.is_file ? '<div class="msg-file-tag">📎 Attached file</div>' : ""}
         <div class="msg-time">${formatTime(msg.timestamp)}</div>
       </div>`;
-
     el.appendChild(div);
     if (scroll) el.scrollTop = el.scrollHeight;
   }
 
   function showTypingIndicator() {
     const el = $("#chatMessages");
-    const existing = $("#typing-indicator");
-    if (existing) existing.remove();
-
+    $("#typing-indicator")?.remove();
     const div = document.createElement("div");
-    div.className = "msg ai";
-    div.id = "typing-indicator";
-    div.setAttribute("aria-label", "AI is typing");
-    div.innerHTML = `<div class="msg-avatar" aria-hidden="true">🤖</div>
-      <div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+    div.className = "msg ai"; div.id = "typing-indicator";
+    div.innerHTML = '<div class="msg-avatar" aria-hidden="true">🤖</div><div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
     el.appendChild(div);
     el.scrollTop = el.scrollHeight;
   }
 
-  function removeTypingIndicator() {
-    $("#typing-indicator")?.remove();
-  }
+  function removeTypingIndicator() { $("#typing-indicator")?.remove(); }
 
   function appendSummaryCard(summary) {
     const el = $("#chatMessages");
     if (el.querySelector(".summary-card")) return;
-
     const div = document.createElement("div");
     div.className = "summary-card";
-    div.setAttribute("role", "complementary");
-    div.setAttribute("aria-label", "Clinical summary");
-
-    const rows = Object.entries(summary)
-      .map(([k, v]) => {
-        const key = esc(k.replace(/_/g, " "));
-        const val =
-          k === "priority_score"
-            ? `<span class="priority ${priorityClass(v)}">${esc(String(v))}/10</span>`
-            : esc(String(v));
-        return `<div class="summary-row"><span class="summary-key">${key}</span><span class="summary-val">${val}</span></div>`;
-      })
-      .join("");
-
+    const rows = Object.entries(summary).map(([k, v]) => {
+      const key = esc(k.replace(/_/g, " "));
+      const val = k === "priority_score" ? `<span class="priority ${priorityClass(v)}">${esc(String(v))}/10</span>` : esc(String(v));
+      return `<div class="summary-row"><span class="summary-key">${key}</span><span class="summary-val">${val}</span></div>`;
+    }).join("");
     div.innerHTML = `<div class="summary-card-title">— Clinical Summary —</div>${rows}`;
     el.appendChild(div);
     el.scrollTop = el.scrollHeight;
   }
 
   async function sendChatMessage() {
-  const input = $("#chatInput");
-  const msg = input.value.trim();
-  if (!msg) return;
-  if (!state.currentSessionId) {
-    toast("Start or select a session first", "error");
-    return;
-  }
-  if (state.isSending) return;
+    const input = $("#chatInput");
+    const msg = input.value.trim();
+    if (!msg) return;
+    if (!state.currentSessionId) { toast("Start or select a session first", "error"); return; }
+    if (state.isSending) return;
 
-  state.isSending = true;
-  input.value = "";
-  input.style.height = "auto";
-  $("#sendBtn").disabled = true;
+    state.isSending = true;
+    input.value = "";
+    input.style.height = "auto";
+    $("#sendBtn").disabled = true;
 
-  appendMessage({ sender: "patient", text: msg });
-  showTypingIndicator();
+    appendMessage({ sender: "patient", text: msg });
+    showTypingIndicator();
 
-  try {
-    const res = await api("/chat/", {
-      method: "POST",
-      body: JSON.stringify({
-        user_id: 1,
-        session_id: state.currentSessionId,
-        message: msg,
-      }),
-    });
-    const data = await res.json();
-    removeTypingIndicator();
-
-    // Debug: log the full response so you can see its shape
-    console.log("[Chat] Response status:", res.status);
-    console.log("[Chat] Response body:", data);
-
-    if (res.ok) {
-      // Handle different possible response structures
-      const reply =
-        data.response ||
-        data.reply ||
-        data.message ||
-        data.answer ||
-        data.text ||
-        (typeof data === "string" ? data : null);
-
-      if (reply) {
-        appendMessage({ sender: "ai", text: reply });
-      } else {
-        // If we can't find the reply field, show the raw data
-        console.warn("[Chat] Unknown response structure:", data);
-        appendMessage({
-          sender: "ai",
-          text: JSON.stringify(data, null, 2),
-        });
-      }
-      loadSessions().catch(() => {});
-    } else {
-      // Safely extract error message from any format
-      const errorMsg = parseApiError(data);
-      appendMessage({ sender: "system", text: `Error: ${errorMsg}` });
-    }
-  } catch (err) {
-    removeTypingIndicator();
-    if (err.name !== "AbortError") {
-      console.error("[Chat] Request failed:", err);
-      appendMessage({
-        sender: "system",
-        text: "Could not reach the server. Please check your connection.",
+    try {
+      const res = await api("/chat/", {
+        method: "POST",
+        body: JSON.stringify({ user_id: 1, session_id: state.currentSessionId, message: msg }),
       });
+      const data = await res.json();
+      removeTypingIndicator();
+      console.log("[Chat] Response:", data);
+
+      if (res.ok) {
+        const reply = data.response || data.reply || data.message || data.answer || data.text || (typeof data === "string" ? data : null);
+        if (reply) {
+          appendMessage({ sender: "ai", text: reply });
+        } else {
+          appendMessage({ sender: "ai", text: JSON.stringify(data, null, 2) });
+        }
+        loadSessions().catch(() => {});
+      } else {
+        appendMessage({ sender: "system", text: `Error: ${parseApiError(data)}` });
+      }
+    } catch (err) {
+      removeTypingIndicator();
+      if (err.name !== "AbortError") {
+        appendMessage({ sender: "system", text: "Could not reach the server." });
+      }
+    } finally {
+      state.isSending = false;
+      $("#sendBtn").disabled = false;
+      input.focus();
     }
-  } finally {
-    state.isSending = false;
-    $("#sendBtn").disabled = false;
-    input.focus();
   }
-}
 
   async function handleChatFileUpload(input) {
-  if (!input.files[0]) return;
-  if (!state.currentSessionId) {
-    toast("Start a session first", "error");
+    if (!input.files[0]) return;
+    if (!state.currentSessionId) { toast("Start a session first", "error"); input.value = ""; return; }
+    const file = input.files[0];
+    if (!validateFileSize(file)) { toast(`File too large. Max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024} MB`, "error"); input.value = ""; return; }
+
+    const form = new FormData();
+    form.append("file", file);
+    form.append("session_id", state.currentSessionId);
+    toast("Uploading file…", "info");
+    appendMessage({ sender: "system", text: `Uploading ${file.name}…` });
+
+    try {
+      const res = await apiForm("/chat/upload", form);
+      const data = await res.json();
+      if (res.ok) toast("File uploaded!", "success");
+      else toast(parseApiError(data), "error");
+    } catch { toast("Upload failed", "error"); }
     input.value = "";
-    return;
   }
-
-  const file = input.files[0];
-  if (!validateFileSize(file)) {
-    toast(
-      `File too large. Maximum size is ${CONFIG.MAX_FILE_SIZE / 1024 / 1024} MB`,
-      "error"
-    );
-    input.value = "";
-    return;
-  }
-
-  const form = new FormData();
-  form.append("file", file);
-  form.append("session_id", state.currentSessionId);
-
-  toast("Uploading file for analysis…", "info");
-  appendMessage({ sender: "system", text: `Uploading ${file.name}…` });
-
-  try {
-    const res = await apiForm("/chat/upload", form);
-    const data = await res.json();
-    if (res.ok) {
-      toast("File uploaded! Analysis running…", "success");
-    } else {
-      toast(parseApiError(data), "error");  // <-- FIXED
-    }
-  } catch {
-    toast("Upload failed — check connection", "error");
-  }
-  input.value = "";
-}
 
   // ═══════════════════════════════════════
   // POLLING
@@ -884,14 +1166,11 @@ function parseApiError(data) {
   }
 
   function stopPolling() {
-    if (state.pollTimer) {
-      clearInterval(state.pollTimer);
-      state.pollTimer = null;
-    }
+    if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
   }
 
   // ═══════════════════════════════════════
-  // FILES
+  // FILES (Patient)
   // ═══════════════════════════════════════
   async function loadFiles() {
     try {
@@ -904,16 +1183,14 @@ function parseApiError(data) {
   }
 
   function getFileTypeInfo(f) {
-    if (f.file_type === "audio")
-      return {
-        cls: "audio",
-        svg: '<svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
-      };
-    if (f.file_type === "pdf" || f.file_name?.endsWith(".pdf"))
-      return {
-        cls: "pdf",
-        svg: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>',
-      };
+    if (f.file_type === "audio") return {
+      cls: "audio",
+      svg: '<svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    };
+    if (f.file_type === "pdf" || f.file_name?.endsWith(".pdf")) return {
+      cls: "pdf",
+      svg: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>',
+    };
     return {
       cls: "image",
       svg: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>',
@@ -923,132 +1200,140 @@ function parseApiError(data) {
   function renderFiles() {
     const el = $("#filesGrid");
     if (!state.files.length) {
-      el.innerHTML =
-        '<div class="empty-state" style="grid-column:1/-1;padding:60px 20px"><div class="empty-state-icon" aria-hidden="true">📂</div><div class="empty-state-title">No files yet</div><div class="empty-state-sub">Upload your medical records, prescriptions, or scans</div></div>';
+      el.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:60px 20px"><div class="empty-state-icon" aria-hidden="true">📂</div><div class="empty-state-title">No files yet</div><div class="empty-state-sub">Upload your medical records</div></div>';
       return;
     }
+    el.innerHTML = state.files.map((f) => {
+      const info = getFileTypeInfo(f);
+      const isProc = f.transcript?.includes("being analyzed") || f.drive_file_id === "processing...";
+      const hasTr = f.transcript && f.transcript !== "User Uploaded Record" && !isProc;
+      return `<div class="file-card" role="listitem" data-action="view-file" data-file-id="${f.id}" tabindex="0">
+        <div class="file-card-actions">
+          <button class="file-delete-btn" data-action="delete-file" data-file-id="${f.id}" aria-label="Delete ${esc(f.file_name)}" type="button">
+            <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,01-2,2H7a2,2,0,01-2-2V6m3,0V4a2,2,0,012-2h4a2,2,0,012,2v2"/></svg>
+          </button>
+        </div>
+        <div class="file-icon ${info.cls}" aria-hidden="true">${info.svg}</div>
+        <div class="file-name">${esc(f.file_name)}</div>
+        <div class="file-meta">${formatDate(f.created_at)} · ${esc(f.file_type || "file")}</div>
+        ${isProc ? '<div class="file-transcript" style="color:var(--amber);font-style:italic">⟳ Processing…</div>' : ""}
+        ${hasTr ? `<div class="file-transcript">${esc(f.transcript)}</div>` : ""}
+      </div>`;
+    }).join("");
 
-    el.innerHTML = state.files
-      .map((f) => {
-        const info = getFileTypeInfo(f);
-        const isProcessing =
-          f.transcript?.includes("being analyzed") ||
-          f.transcript?.includes("being transcribed") ||
-          f.drive_file_id === "processing...";
-        const hasTranscript =
-          f.transcript &&
-          f.transcript !== "User Uploaded Record" &&
-          !isProcessing;
-
-        return `<div class="file-card" role="listitem" data-action="view-file" data-file-id="${f.id}" tabindex="0">
-          <div class="file-card-actions">
-            <button class="file-delete-btn" data-action="delete-file" data-file-id="${f.id}" aria-label="Delete ${esc(f.file_name)}" type="button">
-              <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,01-2,2H7a2,2,0,01-2-2V6m3,0V4a2,2,0,012-2h4a2,2,0,012,2v2"/></svg>
-            </button>
-          </div>
-          <div class="file-icon ${info.cls}" aria-hidden="true">${info.svg}</div>
-          <div class="file-name">${esc(f.file_name)}</div>
-          <div class="file-meta">${formatDate(f.created_at)} · ${esc(f.file_type || "file")}</div>
-          ${isProcessing ? '<div class="file-transcript" style="color:var(--amber);font-style:italic">⟳ Processing…</div>' : ""}
-          ${hasTranscript ? `<div class="file-transcript">${esc(f.transcript)}</div>` : ""}
-        </div>`;
-      })
-      .join("");
-
-    const processing = state.files.some(
-      (f) => f.drive_file_id === "processing..."
-    );
-    const banner = $("#processingBanner");
-    banner.classList.toggle("visible", processing);
+    const processing = state.files.some((f) => f.drive_file_id === "processing...");
+    $("#processingBanner").classList.toggle("visible", processing);
     if (processing) setTimeout(loadFiles, CONFIG.POLL_INTERVAL);
   }
 
   async function deleteFile(id) {
-    const ok = await confirm(
-      "Delete File",
-      "This will permanently delete this file. This action cannot be undone."
-    );
+    const ok = await confirm("Delete File", "This will permanently delete this file.");
     if (!ok) return;
-
     try {
       const res = await api(`/media/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        toast("File deleted", "success");
-        loadFiles();
-        loadDashboard();
-      } else {
-        toast("Could not delete file", "error");
+      if (res.ok) { toast("File deleted", "success"); loadFiles(); loadDashboard(); }
+      else toast("Could not delete file", "error");
+    } catch { toast("Error deleting file", "error"); }
+  }
+  // ═══════════════════════════════════════
+  // FILE VIEWING (Authenticated)
+  // ═══════════════════════════════════════
+
+  /**
+   * Fetches a file through the API with proper auth headers,
+   * creates a temporary blob URL, and opens it in a new tab.
+   */
+  async function viewFileAuthenticated(url) {
+    if (!url) {
+      toast("File not yet available", "info");
+      return;
+    }
+
+    toast("Loading file…", "info");
+
+    try {
+      // Fetch with auth header
+      const res = await fetch(url, {
+        headers: {
+          "Authorization": `Bearer ${state.token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("[ViewFile] Error:", res.status, errorText);
+        if (res.status === 401) {
+          toast("Session expired. Please sign in again.", "error");
+          handleLogout(true);
+          return;
+        }
+        toast(`Could not load file (${res.status})`, "error");
+        return;
       }
-    } catch {
-      toast("Error deleting file", "error");
+
+      // Get the content type from response
+      const contentType = res.headers.get("content-type") || "application/octet-stream";
+      const blob = await res.blob();
+
+      // Create a temporary URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Open in new tab
+      const newTab = window.open(blobUrl, "_blank");
+
+      // If popup was blocked, offer download instead
+      if (!newTab) {
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = "medical-file";
+        a.click();
+        toast("File downloaded (popup was blocked)", "info");
+      }
+
+      // Clean up blob URL after a delay (tab has already loaded it)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+
+    } catch (err) {
+      console.error("[ViewFile] Fetch error:", err);
+      toast("Could not load file. Check your connection.", "error");
     }
   }
-
-  function viewFile(id) {
+    function viewFile(id) {
     const f = state.files.find((x) => x.id === id);
     if (f?.drive_view_link) {
-      window.open(f.drive_view_link, "_blank", "noopener,noreferrer");
+      viewFileAuthenticated(f.drive_view_link);
     } else {
-      toast("File not yet available for viewing", "info");
+      toast("File not yet available", "info");
     }
   }
 
   async function handleGenericUpload(input) {
     if (!input.files[0]) return;
     const file = input.files[0];
-    if (!validateFileSize(file)) {
-      toast(
-        `File too large. Max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024} MB`,
-        "error"
-      );
-      input.value = "";
-      return;
-    }
+    if (!validateFileSize(file)) { toast(`File too large. Max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024} MB`, "error"); input.value = ""; return; }
     const form = new FormData();
     form.append("file", file);
     toast("Uploading…", "info");
     try {
       const res = await apiForm("/media/upload/", form);
-      if (res.ok) {
-        toast("File uploaded!", "success");
-        loadFiles();
-        loadDashboard();
-      } else {
-        const d = await res.json();
-        toast(d.detail || "Upload failed", "error");
-      }
-    } catch {
-      toast("Upload error", "error");
-    }
+      if (res.ok) { toast("File uploaded!", "success"); loadFiles(); loadDashboard(); }
+      else { const d = await res.json(); toast(parseApiError(d), "error"); }
+    } catch { toast("Upload error", "error"); }
     input.value = "";
   }
 
   async function handleOcrUpload(input) {
     if (!input.files[0]) return;
     const file = input.files[0];
-    if (!validateFileSize(file)) {
-      toast(
-        `File too large. Max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024} MB`,
-        "error"
-      );
-      input.value = "";
-      return;
-    }
+    if (!validateFileSize(file)) { toast(`File too large`, "error"); input.value = ""; return; }
     const form = new FormData();
     form.append("file", file);
-    toast("Starting OCR analysis…", "info");
+    toast("Starting OCR…", "info");
     try {
       const res = await apiForm("/ocr/analyze", form);
-      if (res.ok) {
-        toast("OCR started! Results in a few seconds.", "success");
-        setTimeout(loadFiles, 3000);
-      } else {
-        const d = await res.json();
-        toast(d.detail || "OCR failed", "error");
-      }
-    } catch {
-      toast("OCR error", "error");
-    }
+      if (res.ok) { toast("OCR started!", "success"); setTimeout(loadFiles, 3000); }
+      else { const d = await res.json(); toast(parseApiError(d), "error"); }
+    } catch { toast("OCR error", "error"); }
     input.value = "";
   }
 
@@ -1061,33 +1346,16 @@ function parseApiError(data) {
     $("#uploadFileName").style.display = "none";
     $("#modalUploadBtn").disabled = true;
     $("#uploadModal").classList.add("open");
-    setTimeout(
-      () =>
-        $("#modalFileInput")
-          .closest(".modal")
-          ?.querySelector("label, button")
-          ?.focus(),
-      100
-    );
   }
 
   function closeUploadModal() {
     $("#uploadModal").classList.remove("open");
     state.modalFile = null;
-    $("#modalFileInput").value = "";
-    $("#uploadFileName").style.display = "none";
-    $("#modalUploadBtn").disabled = true;
   }
 
   function handleModalFileSelect(file) {
     if (!file) return;
-    if (!validateFileSize(file)) {
-      toast(
-        `File too large. Max ${CONFIG.MAX_FILE_SIZE / 1024 / 1024} MB`,
-        "error"
-      );
-      return;
-    }
+    if (!validateFileSize(file)) { toast(`File too large`, "error"); return; }
     state.modalFile = file;
     const fn = $("#uploadFileName");
     fn.textContent = `📎 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
@@ -1096,30 +1364,17 @@ function parseApiError(data) {
   }
 
   async function submitModalUpload() {
-    if (!state.modalFile) {
-      toast("Please select a file first", "error");
-      return;
-    }
+    if (!state.modalFile) { toast("Select a file first", "error"); return; }
     const btn = $("#modalUploadBtn");
     setButtonLoading(btn, true);
     const form = new FormData();
     form.append("file", state.modalFile);
     try {
       const res = await apiForm("/media/upload/", form);
-      if (res.ok) {
-        toast("File uploaded successfully!", "success");
-        closeUploadModal();
-        loadFiles();
-        loadDashboard();
-      } else {
-        const d = await res.json();
-        toast(d.detail || "Upload failed", "error");
-      }
-    } catch {
-      toast("Upload error", "error");
-    } finally {
-      setButtonLoading(btn, false);
-    }
+      if (res.ok) { toast("File uploaded!", "success"); closeUploadModal(); loadFiles(); loadDashboard(); }
+      else { const d = await res.json(); toast(parseApiError(d), "error"); }
+    } catch { toast("Upload error", "error"); }
+    finally { setButtonLoading(btn, false); }
   }
 
   // ═══════════════════════════════════════
@@ -1134,323 +1389,163 @@ function parseApiError(data) {
       blood_group: $("#profBlood").value,
       current_status: $("#profStatus").value,
     };
-    if (!body.full_name || !body.contact_no) {
-      toast("Full name and contact are required", "error");
-      return;
-    }
+    if (!body.full_name || !body.contact_no) { toast("Name and contact required", "error"); return; }
 
     const btn = $("#profileSaveBtn");
     setButtonLoading(btn, true);
-
     try {
-      const res = await api("/users/me/profile/", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
+      const res = await api("/users/me/profile/", { method: "POST", body: JSON.stringify(body) });
       if (res.ok) {
         toast("Profile saved!", "success");
         const initial = body.full_name[0].toUpperCase();
         $("#profileName").textContent = body.full_name;
         $("#profileAvatar").textContent = initial;
         $("#sidebarAvatar").textContent = initial;
-      } else {
-        const d = await res.json();
-        toast(d.detail || "Save failed", "error");
-      }
-    } catch {
-      toast("Server error", "error");
-    } finally {
-      setButtonLoading(btn, false);
-    }
+      } else { const d = await res.json(); toast(parseApiError(d), "error"); }
+    } catch { toast("Server error", "error"); }
+    finally { setButtonLoading(btn, false); }
   }
 
   // ═══════════════════════════════════════
-  // EVENT DELEGATION
+  // ACTION HANDLER
   // ═══════════════════════════════════════
   function handleAction(e) {
     const target = e.target.closest("[data-action]");
     if (!target) return;
-
     const action = target.dataset.action;
 
     switch (action) {
-      case "new-consult":
-        showScreen("chat");
-        createNewSession();
-        break;
-      case "upload-modal":
-        openUploadModal();
-        break;
-      case "new-session":
-        createNewSession();
-        break;
-      case "open-session":
-        e.preventDefault();
-        openSession(target.dataset.sessionId);
-        break;
-      case "get-summary":
-        $("#chatInput").value = "Please SUMMARIZE our conversation";
-        sendChatMessage();
-        break;
-      case "send-chat":
-        sendChatMessage();
-        break;
-      case "toggle-sessions": {
-        const panel = $("#chatSessionsPanel");
-        panel.classList.toggle("mobile-open");
-        break;
-      }
-      case "go-chat":
-        showScreen("chat");
-        break;
-      case "go-files":
-        showScreen("files");
-        break;
-      case "close-upload":
-        closeUploadModal();
-        break;
-      case "submit-upload":
-        submitModalUpload();
-        break;
-      case "confirm-cancel":
-        closeConfirm(false);
-        break;
-      case "confirm-ok":
-        closeConfirm(true);
-        break;
-      case "delete-file":
-        e.stopPropagation();
-        deleteFile(Number(target.dataset.fileId));
-        break;
-      case "view-file":
-        viewFile(Number(target.dataset.fileId));
-        break;
-    }
-  }
-
-
-  // ═══════════════════════════════════════
-  // VOICE TO TEXT (MIC)
-  // ═══════════════════════════════════════
-  const voiceRecorder = {
-    mediaRecorder: null,
-    audioChunks: [],
-    
-    init: function() {
-      const btn = $("#micBtn");
-      if (!btn) return;
-
-      // Mouse Events
-      btn.addEventListener("mousedown", this.start.bind(this));
-      btn.addEventListener("mouseup", this.stop.bind(this));
-      btn.addEventListener("mouseleave", this.stop.bind(this));
-      
-      // Touch Events (Mobile)
-      btn.addEventListener("touchstart", (e) => { e.preventDefault(); this.start(); }, {passive: false});
-      btn.addEventListener("touchend", (e) => { e.preventDefault(); this.stop(); });
-    },
-    
-    start: async function() {
-      if (this.mediaRecorder && this.mediaRecorder.state === "recording") return;
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        this.mediaRecorder = new MediaRecorder(stream);
-        this.audioChunks = [];
-        
-        this.mediaRecorder.ondataavailable = e => this.audioChunks.push(e.data);
-        this.mediaRecorder.onstop = this.processAudio.bind(this);
-        
-        this.mediaRecorder.start();
-        $("#micBtn").classList.add("recording");
-        toast("Listening... release to send", "info");
-      } catch (err) {
-        toast("Microphone access denied or unavailable", "error");
-      }
-    },
-    
-    stop: function() {
-      if (this.mediaRecorder && this.mediaRecorder.state === "recording") {
-        this.mediaRecorder.stop();
-        $("#micBtn").classList.remove("recording");
-        this.mediaRecorder.stream.getTracks().forEach(track => track.stop()); // Turn off mic light
-      }
-    },
-    
-    processAudio: async function() {
-      const blob = new Blob(this.audioChunks, { type: "audio/webm" });
-      if (blob.size < 1000) return; // Ignore clicks that are too short
-      
-      const form = new FormData();
-      form.append("file", blob, "voice.webm");
-      
-      const input = $("#chatInput");
-      const originalPlaceholder = input.placeholder;
-      input.placeholder = "Transcribing your voice...";
-      input.disabled = true;
-
-      try {
-        const res = await apiForm("/chat/voice-to-text", form);
-        if (res.ok) {
-          const data = await res.json();
-          // Append transcribed text to whatever is already in the box
-          input.value += (input.value ? " " : "") + data.text;
-          autoResize(input);
+      case "new-consult": showScreen("chat"); createNewSession(); break;
+      case "upload-modal": openUploadModal(); break;
+      case "new-session": createNewSession(); break;
+      case "open-session": e.preventDefault(); openSession(target.dataset.sessionId); break;
+      case "get-summary": $("#chatInput").value = "Please SUMMARIZE our conversation"; sendChatMessage(); break;
+      case "send-chat": sendChatMessage(); break;
+      case "toggle-sessions": $("#chatSessionsPanel").classList.toggle("mobile-open"); break;
+      case "go-chat": showScreen("chat"); break;
+      case "go-files": showScreen("files"); break;
+      case "go-patients": showScreen("patients"); break;
+      case "close-upload": closeUploadModal(); break;
+      case "submit-upload": submitModalUpload(); break;
+      case "confirm-cancel": closeConfirm(false); break;
+      case "confirm-ok": closeConfirm(true); break;
+      case "delete-file": e.stopPropagation(); deleteFile(Number(target.dataset.fileId)); break;
+      case "view-file": viewFile(Number(target.dataset.fileId)); break;
+         case "view-file-direct": {
+        const link = target.dataset.viewLink;
+        if (link) {
+          viewFileAuthenticated(link);
         } else {
-          toast("Could not transcribe audio", "error");
+          toast("File not available", "info");
         }
-      } catch (e) {
-        toast("Transcription failed", "error");
-      } finally {
-        input.placeholder = originalPlaceholder;
-        input.disabled = false;
-        input.focus();
+        break;
+      }
+      case "refresh-patients": loadPatients(); break;
+      case "view-patient": viewPatient(Number(target.dataset.patientId)); break;
+      case "back-to-patients": showScreen("patients"); break;
+      case "prescribe": openPrescribeModal(target.dataset.sessionId, target.dataset.patientId); break;
+      case "close-prescribe": closePrescribeModal(); break;
+      case "view-chat-readonly":
+  openChatViewer(target.dataset.sessionId, target.dataset.patientId);
+  break;
+  case "close-chat-viewer":
+  closeChatViewer();
+  break;
+
+case "prescribe-from-viewer":
+  closeChatViewer();
+  openPrescribeModal(target.dataset.sessionId, target.dataset.patientId);
+  break;
       }
     }
-  };
+  
+
   // ═══════════════════════════════════════
-  // INIT EVENTS
+  // EVENTS
   // ═══════════════════════════════════════
   function initEvents() {
-    // Auth forms
-    voiceRecorder.init();
     $("#loginFormEl").addEventListener("submit", handleLogin);
     $("#registerFormEl").addEventListener("submit", handleRegister);
-    $("#showRegister").addEventListener("click", (e) => {
-      e.preventDefault();
-      toggleAuthMode("register");
-    });
-    $("#showLogin").addEventListener("click", (e) => {
-      e.preventDefault();
-      toggleAuthMode("login");
-    });
-
-    // Profile form
+    $("#showRegister").addEventListener("click", (e) => { e.preventDefault(); toggleAuthMode("register"); });
+    $("#showLogin").addEventListener("click", (e) => { e.preventDefault(); toggleAuthMode("login"); });
     $("#profileFormEl").addEventListener("submit", saveProfile);
+    $("#prescribeFormEl").addEventListener("submit", submitPrescription);
 
-    // Navigation
     $$(".nav-item[data-screen]").forEach((item) => {
       item.addEventListener("click", () => showScreen(item.dataset.screen));
-      item.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          showScreen(item.dataset.screen);
-        }
-      });
+      item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showScreen(item.dataset.screen); } });
     });
 
-    // Sidebar mobile
+    // Detail tabs
+    $$(".detail-tab").forEach((tab) => {
+      tab.addEventListener("click", () => activateDetailTab(tab.dataset.tab));
+    });
+
     $("#hamburgerBtn").addEventListener("click", openSidebar);
     $("#sidebarOverlay").addEventListener("click", closeSidebar);
 
-    // Logout
     const logoutPill = $("#logoutPill");
     logoutPill.addEventListener("click", () => handleLogout());
-    logoutPill.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") handleLogout();
-    });
+    logoutPill.addEventListener("keydown", (e) => { if (e.key === "Enter") handleLogout(); });
 
-    // Chat textarea
     const chatInput = $("#chatInput");
-    chatInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendChatMessage();
-      }
-    });
+    chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
     chatInput.addEventListener("input", () => autoResize(chatInput));
 
-    // Chat file upload
-    $("#chatFileInput").addEventListener("change", function () {
-      handleChatFileUpload(this);
-    });
+    $("#chatFileInput").addEventListener("change", function () { handleChatFileUpload(this); });
+    $("#genericUploadInput").addEventListener("change", function () { handleGenericUpload(this); });
+    $("#ocrInput").addEventListener("change", function () { handleOcrUpload(this); });
+    $("#modalFileInput").addEventListener("change", function () { if (this.files[0]) handleModalFileSelect(this.files[0]); });
 
-    // File uploads
-    $("#genericUploadInput").addEventListener("change", function () {
-      handleGenericUpload(this);
-    });
-    $("#ocrInput").addEventListener("change", function () {
-      handleOcrUpload(this);
-    });
-
-    // Modal file input
-    $("#modalFileInput").addEventListener("change", function () {
-      if (this.files[0]) handleModalFileSelect(this.files[0]);
-    });
-
-    // Upload zone drag-and-drop
     const zone = $("#uploadZone");
-    zone.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      zone.classList.add("drag-over");
-    });
+    zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("drag-over"); });
     zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
-    zone.addEventListener("drop", (e) => {
-      e.preventDefault();
-      zone.classList.remove("drag-over");
-      if (e.dataTransfer.files[0]) handleModalFileSelect(e.dataTransfer.files[0]);
-    });
+    zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("drag-over"); if (e.dataTransfer.files[0]) handleModalFileSelect(e.dataTransfer.files[0]); });
 
-    // Hint chips
     $$(".hint-chip[data-hint]").forEach((chip) => {
-      chip.addEventListener("click", () => {
-        chatInput.value = chip.dataset.hint;
-        chatInput.focus();
-      });
+      chip.addEventListener("click", () => { chatInput.value = chip.dataset.hint; chatInput.focus(); });
     });
 
-    // Global action delegation
     document.addEventListener("click", handleAction);
 
-    // Global keyboard
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        if ($("#confirmModal").classList.contains("open")) closeConfirm(false);
-        else if ($("#uploadModal").classList.contains("open")) closeUploadModal();
-        else if ($("#sidebar").classList.contains("open")) closeSidebar();
-      }
-    });
+  if (e.key === "Escape") {
+    if ($("#confirmModal").classList.contains("open")) closeConfirm(false);
+    else if ($("#chatViewerModal").classList.contains("open")) closeChatViewer();
+    else if ($("#prescribeModal").classList.contains("open")) closePrescribeModal();
+    else if ($("#uploadModal").classList.contains("open")) closeUploadModal();
+    else if ($("#sidebar").classList.contains("open")) closeSidebar();
+  }
+});
 
-    // Modal backdrop clicks
-    $("#uploadModal").addEventListener("click", (e) => {
-      if (e.target === $("#uploadModal")) closeUploadModal();
-    });
-    $("#confirmModal").addEventListener("click", (e) => {
-      if (e.target === $("#confirmModal")) closeConfirm(false);
-    });
+    $("#uploadModal").addEventListener("click", (e) => { if (e.target === $("#uploadModal")) closeUploadModal(); });
+    $("#confirmModal").addEventListener("click", (e) => { if (e.target === $("#confirmModal")) closeConfirm(false); });
+    $("#prescribeModal").addEventListener("click", (e) => { if (e.target === $("#prescribeModal")) closePrescribeModal(); });
+    $("#chatViewerModal").addEventListener("click", (e) => {
+  if (e.target === $("#chatViewerModal")) closeChatViewer();
+});
 
-    // Connection status
     window.addEventListener("online", updateConnectionStatus);
     window.addEventListener("offline", updateConnectionStatus);
 
-    // Visibility change — refresh data when tab becomes visible
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && state.token) {
         if (state.currentScreen === "dashboard") loadDashboard();
         if (state.currentScreen === "chat") loadSessions();
         if (state.currentScreen === "files") loadFiles();
+        if (state.currentScreen === "patients") loadPatients();
       }
     });
 
-    // Mobile sessions button
-    if (window.innerWidth <= 768) {
-      $("#mobileSessionsBtn").style.display = "inline-flex";
-    }
-    window.addEventListener(
-      "resize",
-      debounce(() => {
-        $("#mobileSessionsBtn").style.display =
-          window.innerWidth <= 768 ? "inline-flex" : "none";
-      }, CONFIG.DEBOUNCE_MS)
-    );
+    if (window.innerWidth <= 768) $("#mobileSessionsBtn").style.display = "inline-flex";
+    window.addEventListener("resize", debounce(() => {
+      $("#mobileSessionsBtn").style.display = window.innerWidth <= 768 ? "inline-flex" : "none";
+    }, CONFIG.DEBOUNCE_MS));
 
-    // Real-time input validation
     $$(".form-input[required]").forEach((input) => {
       input.addEventListener("blur", () => {
-        if (input.type === "email" && input.value && !validateEmail(input.value)) {
-          input.setAttribute("aria-invalid", "true");
-        } else if (input.value) {
-          input.removeAttribute("aria-invalid");
-        }
+        if (input.type === "email" && input.value && !validateEmail(input.value)) input.setAttribute("aria-invalid", "true");
+        else if (input.value) input.removeAttribute("aria-invalid");
       });
       input.addEventListener("input", () => {
         input.removeAttribute("aria-invalid");
@@ -1461,21 +1556,14 @@ function parseApiError(data) {
   }
 
   // ═══════════════════════════════════════
-  // BOOT
+  // INIT
   // ═══════════════════════════════════════
   function init() {
     initEvents();
     updateConnectionStatus();
 
-    // Restore session
     state.token = localStorage.getItem(CONFIG.TOKEN_KEY) || null;
-    try {
-      state.user = JSON.parse(
-        localStorage.getItem(CONFIG.USER_KEY) || "null"
-      );
-    } catch {
-      state.user = null;
-    }
+    try { state.user = JSON.parse(localStorage.getItem(CONFIG.USER_KEY) || "null"); } catch { state.user = null; }
 
     if (state.token && state.user) {
       enterApp();
