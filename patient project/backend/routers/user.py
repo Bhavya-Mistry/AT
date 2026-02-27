@@ -67,3 +67,21 @@ def get_patient_chat_sessions(
         .all()
     )
     return sessions
+
+
+@router.get("/me/profile/", response_model=schemas.ProfileRead)
+def get_user_profile(
+    db: Session = Depends(get_db),
+    current_user: schemas.TokenData = Depends(get_current_user),
+):
+    """Fetches the current user's profile data."""
+    db_profile = (
+        db.query(models.Profile)
+        .filter(models.Profile.user_id == current_user.user_id)
+        .first()
+    )
+
+    if not db_profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    return db_profile
