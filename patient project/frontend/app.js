@@ -390,17 +390,27 @@ const App = (() => {
     state.files = [];
     state.patients = [];
     state.selectedPatientId = null;
+    state.patientSummariesCache = {};
+
+    // Clear storage
     localStorage.removeItem(CONFIG.TOKEN_KEY);
     localStorage.removeItem(CONFIG.USER_KEY);
+
+    // Stop background tasks
     stopPolling();
     state.abortControllers.forEach((c) => c.abort());
     state.abortControllers.clear();
 
+    // Clear all form fields to prevent data leaking to next user
+    clearProfileForm();
+    $$(".auth-card input").forEach((i) => { if (i.type !== "checkbox") i.value = ""; });
+    $$(".auth-card input[type=checkbox]").forEach((i) => (i.checked = false));
+
+    // Reset UI
     $("#authWrap").style.display = "flex";
     $("#mainApp").style.display = "none";
     closeSidebar();
-    $$(".auth-card input").forEach((i) => { if (i.type !== "checkbox") i.value = ""; });
-    $$(".auth-card input[type=checkbox]").forEach((i) => (i.checked = false));
+
     toast(expired ? "Session expired. Please sign in again." : "Signed out", expired ? "error" : "info");
     toggleAuthMode("login");
   }
@@ -408,27 +418,28 @@ const App = (() => {
   // ═══════════════════════════════════════
   // ROLE-BASED UI
   // ═══════════════════════════════════════
-    function applyRole() {
+      function applyRole() {
     const email = state.user?.email || "";
     const role = state.user?.role || "patient";
     const initial = email[0]?.toUpperCase() || "U";
     const doc = role === "doctor";
     const roleLabel = doc ? "Doctor" : "Patient";
 
-    // Sidebar
+    // Sidebar - reset to email initial (loadProfile will update if profile exists)
     $("#sidebarEmail").textContent = email;
     $("#sidebarAvatar").textContent = initial;
     $("#sidebarAvatar").classList.toggle("doctor-avatar", doc);
     $("#sidebarRole").textContent = `${roleLabel} · Sign out`;
 
-    // Profile
+    // Profile - reset to email initial
     $("#profileEmail").textContent = email;
     $("#profileAvatar").textContent = initial;
     $("#profileAvatar").classList.toggle("doctor-avatar", doc);
     $("#profileBadge").textContent = roleLabel;
     $("#profileBadge").classList.toggle("doctor-badge", doc);
+    $("#profileName").textContent = "\u2014"; // Will be updated by loadProfile
 
-    // Show/hide role-specific elements (nav items, stat rows, buttons)
+    // Show/hide role-specific elements
     $$(".role-patient").forEach((el) => {
       el.style.display = doc ? "none" : "";
     });
@@ -436,7 +447,7 @@ const App = (() => {
       el.style.display = doc ? "" : "none";
     });
 
-    // Dashboard cards — adjust titles and actions based on role
+    // Dashboard cards
     if (doc) {
       $("#recentChatsTitle").textContent = "High Priority Patients";
       $("#recentFilesTitle").textContent = "Recent Activity";
@@ -806,6 +817,7 @@ const App = (() => {
   // ═══════════════════════════════════════
   // DOCTOR: PATIENT DETAIL
   // ═══════════════════════════════════════
+
   async function viewPatient(patientId) {
     state.selectedPatientId = patientId;
     showScreen("patient-detail");
@@ -1538,7 +1550,19 @@ function closeChatViewer() {
   // ═══════════════════════════════════════
   // PROFILE
   // ═══════════════════════════════════════
-    async function loadProfile() {
+    function clearProfileForm() {
+    $("#profFullName").value = "";
+    $("#profContact").value = "";
+    $("#profAddress").value = "";
+    $("#profBlood").value = "";
+    $("#profStatus").value = "stable";
+    $("#profileName").textContent = "\u2014";
+  }
+    
+  async function loadProfile() {
+    // Always clear first to prevent stale data from showing
+    clearProfileForm();
+
     try {
       const res = await api("/users/me/profile/", { _abortKey: "load-profile" });
 
@@ -1560,15 +1584,20 @@ function closeChatViewer() {
           $("#sidebarAvatar").textContent = initial;
         }
       } else if (res.status === 404) {
-        // No profile yet — form stays empty, that's fine
+        // No profile yet — form already cleared above
         console.log("[Profile] No existing profile found");
+        // Reset avatar to email initial
+        const initial = state.user?.email?.[0]?.toUpperCase() || "U";
+        $("#profileAvatar").textContent = initial;
+        $("#sidebarAvatar").textContent = initial;
       }
     } catch (err) {
       if (err.name !== "AbortError") {
         console.error("[Profile] Failed to load:", err);
       }
     }
-  }
+  } 
+
   async function saveProfile(e) {
     e.preventDefault();
     const body = {
