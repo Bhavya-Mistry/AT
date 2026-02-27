@@ -114,15 +114,20 @@ def get_ai_response(db_history: list, new_user_message: str) -> str:
 
 def transcribe_audio(file_path: str) -> str:
     """
-    Uploads audio to Gemini (New SDK) and returns the transcription.
+    Uploads audio to Gemini and returns the transcription.
     """
     try:
         print(f"Uploading {file_path} to Gemini...")
 
-        # 1. Upload the file using the new Client
-        upload_result = client.files.upload(file=file_path)
+        # 1. EXPLICITLY TELL GEMINI IT IS AN AUDIO FILE to prevent the 500 Crash
+        upload_config = None
+        if file_path.endswith(".webm"):
+            upload_config = types.UploadFileConfig(mime_type="audio/webm")
 
-        # 2. Wait for processing
+        # Upload the file with the config
+        upload_result = client.files.upload(file=file_path, config=upload_config)
+
+        # 2. Wait for processing (Audio takes a few seconds)
         while upload_result.state.name == "PROCESSING":
             print("Processing audio...")
             time.sleep(1)
@@ -134,23 +139,12 @@ def transcribe_audio(file_path: str) -> str:
 
         print("Audio ready. Generating transcript...")
 
-        # 3. Generate Content (Using Audio + Prompt)
+        # 3. Generate Content
         prompt = "Listen to this audio. Transcribe exactly what is said in Hindi, but write it using the English alphabet (Hinglish/Roman Script). Example: 'Tum kaise ho?'"
 
+        # The new SDK allows us to pass the File object directly into the contents array!
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_uri(
-                            file_uri=upload_result.uri,
-                            mime_type=upload_result.mime_type,
-                        ),
-                        types.Part.from_text(text=prompt),
-                    ],
-                )
-            ],
+            model="gemini-2.5-flash", contents=[upload_result, prompt]
         )
 
         return response.text
