@@ -712,21 +712,23 @@ const App = (() => {
     }).join("");
   }
 
-  function renderRecentChats(chats) {
+    function renderRecentChats(chats) {
     const el = $("#recentChats");
     if (!chats.length) {
       el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">💬</div><div class="empty-state-title">No consultations yet</div><div class="empty-state-sub">Start a conversation with the AI assistant</div></div>';
       return;
     }
     el.innerHTML = chats.map((s) => {
+      const firstPatientMsg = s.messages?.find((m) => m.sender === "patient");
+      const displayName = getSessionDisplayName(firstPatientMsg?.text);
       const last = s.messages?.slice().reverse().find((m) => m.sender !== "system");
       const score = s.summary?.priority_score;
       const pc = priorityClass(score);
-      const preview = esc((last?.text || "No messages yet").substring(0, 60));
+      const preview = esc((last?.text || "No messages yet").substring(0, 50));
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="open-session" data-session-id="${esc(s.session_id)}" tabindex="0" role="button">
         <div style="flex:1;min-width:0">
-          <div style="font-size:12px;color:var(--text);font-family:var(--mono);margin-bottom:2px">${esc(s.session_id)}</div>
-          <div style="font-size:12px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}…</div>
+          <div style="font-size:13px;color:var(--text);font-weight:500;margin-bottom:2px">${esc(displayName)}</div>
+          <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}…</div>
         </div>
         ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
       </div>`;
@@ -1088,28 +1090,38 @@ function closeChatViewer() {
     }
   }
 
-  function renderSessionList() {
+    function renderSessionList() {
     const el = $("#sessionList");
     if (!state.sessions.length) {
-      el.innerHTML = '<div class="empty-state" style="padding:30px 16px"><div class="empty-state-sub">No sessions yet. Click "+ New" to start.</div></div>';
+      el.innerHTML = '<div class="empty-state" style="padding:30px 16px"><div class="empty-state-sub">No sessions yet. Start typing to begin.</div></div>';
       return;
     }
     el.innerHTML = state.sessions.map((s) => {
+      const firstPatientMsg = s.messages?.find((m) => m.sender === "patient");
       const last = s.messages?.slice().reverse().find((m) => m.sender !== "system");
+      const displayName = getSessionDisplayName(firstPatientMsg?.text);
       const preview = esc((last?.text || "No messages").substring(0, 45));
       const active = s.session_id === state.currentSessionId;
+      const score = s.summary?.priority_score;
+      const pc = priorityClass(score);
+
       return `<div class="session-item" role="option" aria-selected="${active}" data-action="open-session" data-session-id="${esc(s.session_id)}" tabindex="0">
-        <div class="session-id">${esc(s.session_id)}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+          <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(displayName)}</div>
+          ${score ? `<span class="priority ${pc}" style="flex-shrink:0;margin-left:6px">${esc(String(score))}</span>` : ""}
+        </div>
         <div class="session-preview">${preview}…</div>
         <div class="session-date">${formatDate(s.created_at)}</div>
       </div>`;
     }).join("");
   }
 
-  function createNewSession() {
+
+    function createNewSession() {
     state.currentSessionId = genId("sess");
-    $("#currentSessionName").textContent = state.currentSessionId;
-    $("#currentSessionMeta").textContent = "New session — type to begin";
+    const dateName = `New · ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+    $("#currentSessionName").textContent = dateName;
+    $("#currentSessionMeta").textContent = "Type your first message to begin";
     $("#summaryBtn").disabled = false;
     renderMessages([]);
     renderSessionList();
@@ -1117,10 +1129,43 @@ function closeChatViewer() {
     $("#chatInput").focus();
   }
 
-  function openSession(id) {
+
+  function getSessionDisplayName(firstMessage) {
+    if (!firstMessage || firstMessage.length < 3) {
+      return `Consultation · ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
+    }
+
+    // Clean up the message
+    let name = firstMessage
+      .replace(/^(hi|hello|hey|doc|doctor|please|i have|i am|i'm|i've been|i feel|i need)\s*/gi, "")
+      .replace(/[.!?,;:]+$/, "")
+      .trim();
+
+    // Capitalize first letter
+    if (name.length > 0) {
+      name = name[0].toUpperCase() + name.slice(1);
+    }
+
+    // Truncate to reasonable length
+    if (name.length > 40) {
+      name = name.substring(0, 37) + "…";
+    }
+
+    // If cleaning removed everything, fall back to date
+    if (name.length < 3) {
+      return `Consultation · ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
+    }
+
+    return name;
+  }
+
+    function openSession(id) {
     state.currentSessionId = id;
     const s = state.sessions.find((x) => x.session_id === id);
-    $("#currentSessionName").textContent = id;
+    const firstPatientMsg = s?.messages?.find((m) => m.sender === "patient");
+    const displayName = getSessionDisplayName(firstPatientMsg?.text);
+
+    $("#currentSessionName").textContent = displayName;
     $("#currentSessionMeta").textContent = `${s?.messages?.length || 0} messages · ${formatDate(s?.created_at)}`;
     $("#summaryBtn").disabled = false;
     renderMessages(s?.messages || []);
@@ -1191,16 +1236,26 @@ function closeChatViewer() {
   }
 
   async function sendChatMessage() {
-    const input = $("#chatInput");
+        const input = $("#chatInput");
     const msg = input.value.trim();
     if (!msg) return;
-    if (!state.currentSessionId) { toast("Start or select a session first", "error"); return; }
+
+    // Auto-create session if none exists
+    if (!state.currentSessionId) {
+      state.currentSessionId = genId("sess");
+      $("#currentSessionName").textContent = getSessionDisplayName(msg);
+      $("#currentSessionMeta").textContent = "New session";
+      $("#summaryBtn").disabled = false;
+    }
+
     if (state.isSending) return;
 
     state.isSending = true;
     input.value = "";
     input.style.height = "auto";
     $("#sendBtn").disabled = true;
+
+
 
     appendMessage({ sender: "patient", text: msg });
     showTypingIndicator();
