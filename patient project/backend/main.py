@@ -32,7 +32,7 @@ from security import create_access_token
 
 from security import get_current_user
 
-from routers import auth, chat, user, doctor, media
+from routers import auth, chat, user, doctor, media, appointment
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
@@ -44,6 +44,7 @@ app.include_router(chat.router)
 app.include_router(user.router)
 app.include_router(doctor.router)
 app.include_router(media.router)
+app.include_router(appointment.router)
 
 # --- CORS SETTINGS ---
 app.add_middleware(
