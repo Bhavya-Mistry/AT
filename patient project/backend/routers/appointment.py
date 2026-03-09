@@ -2,12 +2,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-import uuid
 
 import models
 import schemas
+import calendar_service  # <-- IMPORT OUR NEW SERVICE
 from db import get_db
 from security import get_current_user, get_current_doctor
+from datetime import timedelta
+from sqlalchemy import and_
+
 
 router = APIRouter(prefix="/appointments", tags=["Appointments & Scheduling"])
 
@@ -18,9 +21,7 @@ def book_appointment(
     db: Session = Depends(get_db),
     current_user: schemas.TokenData = Depends(get_current_user),
 ):
-    """Allows a patient to book a time slot with a doctor."""
-
-    # Check if doctor exists
+    # 1. Check if doctor exists
     doctor = (
         db.query(models.User)
         .filter(
@@ -33,7 +34,7 @@ def book_appointment(
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
 
-    # Check if the chat session actually belongs to this patient
+    # 2. Check if the chat session actually belongs to this patient
     chat_session = (
         db.query(models.ChatHistory)
         .filter(
@@ -46,16 +47,63 @@ def book_appointment(
     if not chat_session:
         raise HTTPException(status_code=403, detail="Invalid chat session")
 
-    # Generate a dummy meeting link for the MVP
-    fake_meeting_id = str(uuid.uuid4())[:10]
-    meet_link = f"https://meet.google.com/{fake_meeting_id}"
+    appointment_end_time = request.scheduled_time + timedelta(minutes=15)
 
+    # Check if the doctor has any scheduled appointment that overlaps with this 15-minute window
+    doctor_clash = (
+        db.query(models.Appointment)
+        .filter(
+            models.Appointment.doctor_id == request.doctor_id,
+            models.Appointment.status == models.AppointmentStatus.SCHEDULED,
+            # This logic checks for any time overlap within the 15 minutes
+            and_(
+                models.Appointment.scheduled_time < appointment_end_time,
+                (models.Appointment.scheduled_time + timedelta(minutes=15))
+                > request.scheduled_time,
+            ),
+        )
+        .first()
+    )
+
+    if doctor_clash:
+        raise HTTPException(
+            status_code=409,  # 409 Conflict is the standard HTTP code for scheduling clashes
+            detail="The doctor is already booked at this time. Please choose another slot.",
+        )
+    # --- NEW: PREVENT DOUBLE BOOKING ---
+    existing_appointment = (
+        db.query(models.Appointment)
+        .filter(
+            models.Appointment.session_id == request.session_id,
+            models.Appointment.status == models.AppointmentStatus.SCHEDULED,
+        )
+        .first()
+    )
+
+    if existing_appointment:
+        raise HTTPException(
+            status_code=400,
+            detail="An active appointment is already scheduled for this triage session.",
+        )
+    # -----------------------------------
+
+    # 3. Generate REAL Google Meet Link
+    real_meet_link = calendar_service.create_meet_link(
+        start_time=request.scheduled_time,
+        doctor_email=doctor.email,
+        patient_email=current_user.email,
+    )
+
+    if not real_meet_link:
+        real_meet_link = "https://meet.google.com/error-generating-link"
+
+    # 4. Save to DB
     new_appointment = models.Appointment(
         patient_id=current_user.user_id,
         doctor_id=request.doctor_id,
         session_id=request.session_id,
         scheduled_time=request.scheduled_time,
-        meeting_link=meet_link,
+        meeting_link=real_meet_link,
     )
 
     db.add(new_appointment)
@@ -97,3 +145,43 @@ def get_doctor_appointments(
     )
 
     return appointments
+
+
+@router.patch("/{appointment_id}/cancel", response_model=schemas.AppointmentRead)
+def cancel_appointment(
+    appointment_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.TokenData = Depends(get_current_user),
+):
+    """Cancels an existing appointment."""
+
+    # 1. Find the appointment
+    appointment = (
+        db.query(models.Appointment)
+        .filter(models.Appointment.id == appointment_id)
+        .first()
+    )
+
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    # 2. Security Check: Ensure the person canceling is either the doctor OR the patient
+    if current_user.user_id not in [appointment.patient_id, appointment.doctor_id]:
+        raise HTTPException(
+            status_code=403, detail="Not authorized to cancel this appointment"
+        )
+
+    # 3. Check if it's already cancelled or completed
+    if appointment.status != models.AppointmentStatus.SCHEDULED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel an appointment that is already {appointment.status.value}",
+        )
+
+    # 4. Update the status
+    appointment.status = models.AppointmentStatus.CANCELLED
+
+    db.commit()
+    db.refresh(appointment)
+
+    return appointment
