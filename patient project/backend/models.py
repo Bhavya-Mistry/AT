@@ -131,3 +131,30 @@ class Appointment(Base):
     # Relationships to easily fetch user data later
     patient = relationship("User", foreign_keys=[patient_id])
     doctor = relationship("User", foreign_keys=[doctor_id])
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # 'actor_id' is the person performing the action (usually the Doctor)
+    actor_id = Column(Integer, ForeignKey("users.id"), index=True)
+
+    # 'patient_id' is the person whose data is being accessed
+    patient_id = Column(Integer, ForeignKey("users.id"), index=True)
+
+    # What did they do? (e.g., "VIEWED_TIMELINE", "DOWNLOADED_PRESCRIPTION")
+    action = Column(String)
+
+    # What exactly did they look at? (e.g., "MedicalMedia")
+    resource_type = Column(String, nullable=True)
+
+    # The ID of the specific file or chat they looked at
+    resource_id = Column(String, nullable=True)
+
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships so we can easily join user data later
+    actor = relationship("User", foreign_keys=[actor_id])
+    patient = relationship("User", foreign_keys=[patient_id])
