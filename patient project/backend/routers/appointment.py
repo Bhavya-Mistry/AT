@@ -28,6 +28,7 @@ def book_appointment(
             models.User.id == request.doctor_id,
             models.User.role == models.UserRole.DOCTOR,
         )
+        .with_for_update()
         .first()
     )
 
@@ -47,30 +48,29 @@ def book_appointment(
     if not chat_session:
         raise HTTPException(status_code=403, detail="Invalid chat session")
 
-    appointment_end_time = request.scheduled_time + timedelta(minutes=15)
+    # 3. PREVENT DOCTOR DOUBLE-BOOKING (Time Clash)
+    # Calculate the dangerous time window in Python to avoid SQL interval issues
+    lower_bound = request.scheduled_time - timedelta(minutes=15)
+    upper_bound = request.scheduled_time + timedelta(minutes=15)
 
-    # Check if the doctor has any scheduled appointment that overlaps with this 15-minute window
     doctor_clash = (
         db.query(models.Appointment)
         .filter(
             models.Appointment.doctor_id == request.doctor_id,
             models.Appointment.status == models.AppointmentStatus.SCHEDULED,
-            # This logic checks for any time overlap within the 15 minutes
-            and_(
-                models.Appointment.scheduled_time < appointment_end_time,
-                (models.Appointment.scheduled_time + timedelta(minutes=15))
-                > request.scheduled_time,
-            ),
+            models.Appointment.scheduled_time > lower_bound,
+            models.Appointment.scheduled_time < upper_bound,
         )
         .first()
     )
 
     if doctor_clash:
         raise HTTPException(
-            status_code=409,  # 409 Conflict is the standard HTTP code for scheduling clashes
+            status_code=409,  # 409 Conflict
             detail="The doctor is already booked at this time. Please choose another slot.",
         )
-    # --- NEW: PREVENT DOUBLE BOOKING ---
+
+    # 4. PREVENT SESSION DOUBLE-BOOKING
     existing_appointment = (
         db.query(models.Appointment)
         .filter(
@@ -85,9 +85,8 @@ def book_appointment(
             status_code=400,
             detail="An active appointment is already scheduled for this triage session.",
         )
-    # -----------------------------------
 
-    # 3. Generate REAL Google Meet Link
+    # 5. Generate REAL Google Meet Link
     real_meet_link = calendar_service.create_meet_link(
         start_time=request.scheduled_time,
         doctor_email=doctor.email,
@@ -97,13 +96,14 @@ def book_appointment(
     if not real_meet_link:
         real_meet_link = "https://meet.google.com/error-generating-link"
 
-    # 4. Save to DB
+    # 6. Save to DB
     new_appointment = models.Appointment(
         patient_id=current_user.user_id,
         doctor_id=request.doctor_id,
         session_id=request.session_id,
         scheduled_time=request.scheduled_time,
         meeting_link=real_meet_link,
+        # Default status is automatically SCHEDULED thanks to models.py
     )
 
     db.add(new_appointment)
