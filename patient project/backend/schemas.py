@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any
 from models import UserRole, MedicalStatus
 from datetime import datetime
 
+
 # --- PROFILE SCHEMAS ---
 class ProfileBase(BaseModel):
     full_name: str
@@ -12,8 +13,10 @@ class ProfileBase(BaseModel):
     current_status: MedicalStatus
     profile_pic_drive_id: Optional[str] = None
 
+
 class ProfileCreate(ProfileBase):
     pass
+
 
 class ProfileRead(ProfileBase):
     id: int
@@ -22,12 +25,14 @@ class ProfileRead(ProfileBase):
     class Config:
         from_attributes = True
 
+
 # --- USER SCHEMAS ---
 class UserCreate(BaseModel):
     email: str
     password: str
     is_policy_accepted: bool = False
     has_signed_baa: bool = False
+
 
 class UserRead(BaseModel):
     id: int
@@ -38,9 +43,11 @@ class UserRead(BaseModel):
     class Config:
         from_attributes = True
 
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
 
 # --- MEDIA & CHAT SCHEMAS ---
 class MediaRead(BaseModel):
@@ -54,6 +61,7 @@ class MediaRead(BaseModel):
     class Config:
         from_attributes = True
 
+
 class ChatHistoryRead(BaseModel):
     session_id: str
     messages: List[dict]
@@ -63,14 +71,30 @@ class ChatHistoryRead(BaseModel):
     class Config:
         from_attributes = True
 
+
 # --- CHAT INPUT ---
 class ChatRequest(BaseModel):
-    user_id: int
+    # user_id: int
     session_id: str
     message: str
+
 
 # --- DOCTOR PRESCRIPTION INPUT (NEW) ---
 class PrescriptionRequest(BaseModel):
     session_id: str
     doctor_notes: str
-    follow_up_days: int = 3 # Default to 3 days
+    follow_up_days: int = 3  # Default to 3 days
+
+
+# Add this to the bottom of backend/schemas.py
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+    user_id: Optional[int] = None
+    role: Optional[UserRole] = None
