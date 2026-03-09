@@ -119,3 +119,16 @@ class AppointmentRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AuditLogRead(BaseModel):
+    id: int
+    actor_id: int
+    patient_id: int
+    action: str
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
