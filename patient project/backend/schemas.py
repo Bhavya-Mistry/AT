@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Dict, Any
 from models import UserRole, MedicalStatus
 from datetime import datetime
+from models import AppointmentStatus
 
 
 # --- PROFILE SCHEMAS ---
@@ -98,3 +99,23 @@ class TokenData(BaseModel):
     email: Optional[str] = None
     user_id: Optional[int] = None
     role: Optional[UserRole] = None
+
+
+class AppointmentCreate(BaseModel):
+    doctor_id: int
+    session_id: str
+    scheduled_time: datetime
+
+
+class AppointmentRead(BaseModel):
+    id: int
+    patient_id: int
+    doctor_id: int
+    session_id: str
+    scheduled_time: datetime
+    status: AppointmentStatus
+    meeting_link: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
