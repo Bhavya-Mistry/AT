@@ -34,24 +34,88 @@ def get_all_patients(db: Session = Depends(get_db)):
     return patients
 
 
-@router.get(
-    "/patients/{patient_id}/summaries", response_model=List[schemas.ChatHistoryRead]
-)
-def get_patient_summaries(patient_id: int, db: Session = Depends(get_db)):
-    """Fetches chat sessions and SORTS them by priority score."""
+# @router.get(
+#     "/patients/{patient_id}/summaries", response_model=List[schemas.ChatHistoryRead]
+# )
+# def get_patient_summaries(patient_id: int, db: Session = Depends(get_db)):
+#     """Fetches chat sessions and SORTS them by priority score."""
+#     sessions = (
+#         db.query(models.ChatHistory)
+#         .filter(models.ChatHistory.patient_id == patient_id)
+#         .all()
+#     )
+
+#     def get_priority(session):
+#         if session.summary and isinstance(session.summary, dict):
+#             return session.summary.get("priority_score", 0)
+#         return 0
+
+#     sessions.sort(key=get_priority, reverse=True)
+#     return sessions
+
+
+@router.get("/patients/{patient_id}/summaries")
+def get_patient_timeline(patient_id: int, db: Session = Depends(get_db)):
+    """Fetches a chronological timeline of AI chat summaries and uploaded files for a patient."""
+
+    # 1. Fetch all Chat Sessions
     sessions = (
         db.query(models.ChatHistory)
         .filter(models.ChatHistory.patient_id == patient_id)
         .all()
     )
 
-    def get_priority(session):
-        if session.summary and isinstance(session.summary, dict):
-            return session.summary.get("priority_score", 0)
-        return 0
+    # 2. Fetch all Medical Files
+    files = (
+        db.query(models.MedicalMedia)
+        .filter(models.MedicalMedia.patient_id == patient_id)
+        .all()
+    )
 
-    sessions.sort(key=get_priority, reverse=True)
-    return sessions
+    timeline = []
+
+    # 3. Format Chat Summaries for the Timeline
+    for session in sessions:
+        if (
+            session.summary
+        ):  # Only include sessions where the AI actually generated a summary
+            priority = 0
+            if isinstance(session.summary, dict):
+                priority = session.summary.get("priority_score", 0)
+
+            timeline.append(
+                {
+                    "type": "triage_summary",
+                    "id": f"chat_{session.id}",
+                    "title": "AI Triage Assessment",
+                    "created_at": session.created_at,
+                    "priority_score": priority,
+                    "content": session.summary,
+                }
+            )
+
+    # 4. Format Medical Files for the Timeline
+    for f in files:
+        timeline.append(
+            {
+                "type": "medical_record",
+                "id": f"file_{f.id}",
+                "title": f.file_name,
+                "created_at": f.created_at,
+                "priority_score": None,  # Files don't have a priority score
+                "content": {
+                    "file_type": f.file_type,
+                    "transcript": f.transcript,  # Includes OCR text or Audio transcript
+                    "url": f.drive_view_link,
+                },
+            }
+        )
+
+    # 5. Sort everything chronologically (Newest first)
+    # We use reverse=True so the doctor sees the most recent events at the top
+    timeline.sort(key=lambda x: x["created_at"], reverse=True)
+
+    return timeline
 
 
 @router.post("/prescribe/")
