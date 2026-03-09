@@ -140,7 +140,7 @@ def transcribe_audio(file_path: str) -> str:
         print("Audio ready. Generating transcript...")
 
         # 3. Generate Content
-        prompt = "Listen to this audio. Transcribe exactly what is said in Hindi, but write it using the English alphabet (Hinglish/Roman Script). Example: 'Tum kaise ho?'"
+        prompt = "Listen to this audio. Transcribe exactly what is said, but write it using the English alphabet (Hinglish/Roman Script). Example: 'Tum kaise ho?' 'Tame kem cho?' "
 
         # The new SDK allows us to pass the File object directly into the contents array!
         response = client.models.generate_content(
