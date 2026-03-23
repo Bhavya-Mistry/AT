@@ -894,11 +894,11 @@ const App = (() => {
           ${msgCount} messages · ${formatDate(s.created_at)}
         </div>
         <div class="summary-list-actions">
-          <button class="btn btn-purple" data-action="prescribe" data-session-id="${esc(s.session_id)}" data-patient-id="${patientId}" type="button">
+          <button class="btn btn-purple" data-action="prescribe" data-session-id="${esc(s.session_id || s.id)}" data-patient-id="${patientId}" type="button">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
             Prescribe
           </button>
-          <button class="btn btn-ghost" data-action="view-chat-readonly" data-session-id="${esc(s.session_id)}" data-patient-id="${patientId}" type="button">
+          <button class="btn btn-ghost" data-action="view-chat-readonly" data-session-id="${esc(s.session_id || s.id)}" data-patient-id="${patientId}" type="button">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             View Chat
           </button>
@@ -998,98 +998,97 @@ const App = (() => {
   // ═══════════════════════════════════════
   // DOCTOR: CHAT VIEWER
   // ═══════════════════════════════════════
-  function openChatViewer(sessionId, patientId) {
+  async function openChatViewer(rawId, patientId) {
+    // rawId is either:
+    //   - "chat_2"  (from the summaries timeline endpoint, where id = "chat_{db_row_id}")
+    //   - a session UUID (legacy path, kept for safety)
+    // We extract the DB row id and call GET /doctor/patients/:pid/chat/:chat_db_id
+
     const pid = Number(patientId);
-    const sessions = state.patientSummariesCache[pid] || [];
-    const session = sessions.find((s) => s.session_id === sessionId);
-
-    if (!session) {
-      toast("Session data not found. Try refreshing.", "error");
-      return;
-    }
-
     const patient = state.patients.find((p) => p.id === pid);
     const patientName = patient?.profile?.full_name || patient?.email || "Patient";
     const patientInitial = patientName[0]?.toUpperCase() || "P";
-    const messages = session.messages || [];
 
-    // Set header
-    $("#chatViewerTitle").textContent = `Chat: ${sessionId}`;
-    $("#chatViewerSub").textContent = `${patientName} · ${messages.length} messages · ${formatDate(session.created_at)}`;
+    // Extract numeric DB id from "chat_2" -> 2, or use as-is for legacy session UUIDs
+    const chatDbId = String(rawId).startsWith("chat_")
+      ? String(rawId).replace("chat_", "")
+      : rawId;
 
-    // Render messages
-    const el = $("#chatViewerMessages");
-
-    if (!messages.length) {
-      el.innerHTML = '<div class="empty-state" style="padding:40px 20px"><div class="empty-state-icon" aria-hidden="true">💬</div><div class="empty-state-title">Empty session</div><div class="empty-state-sub">No messages in this conversation</div></div>';
-    } else {
-      let html = "";
-
-      // Count by sender
-      const counts = { patient: 0, ai: 0, system: 0 };
-      messages.forEach((m) => {
-        const sender = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
-        counts[sender]++;
-      });
-
-      messages.forEach((m, i) => {
-        const sender = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
-        const avatarMap = { patient: patientInitial, system: "⚙", ai: "🤖" };
-        const senderLabel = { patient: patientName, system: "System", ai: "AI Assistant" };
-        const text = esc(m.text || "").replace(/\n/g, "<br>");
-
-        html += `<div class="cv-msg ${sender}">
-        <div class="cv-msg-avatar" aria-hidden="true">${avatarMap[sender]}</div>
-        <div>
-          <div class="cv-msg-bubble">${text}</div>
-          <div class="cv-msg-meta">${esc(senderLabel[sender])}${m.timestamp ? " · " + formatTime(m.timestamp) : ""}</div>
-        </div>
-      </div>`;
-      });
-
-      // Append summary if exists
-      if (session.summary) {
-        html += '<div class="cv-divider">Clinical Summary</div>';
-        html += '<div class="cv-summary-inline">';
-        html += '<div class="summary-card-title">— AI Summary —</div>';
-        html += Object.entries(session.summary).map(([k, v]) => {
-          const key = esc(k.replace(/_/g, " "));
-          const val = k === "priority_score"
-            ? `<span class="priority ${priorityClass(v)}">${esc(String(v))}/10</span>`
-            : esc(String(v));
-          return `<div class="summary-row"><span class="summary-key">${key}</span><span class="summary-val">${val}</span></div>`;
-        }).join("");
-        html += "</div>";
-      }
-
-      el.innerHTML = html;
-    }
-
-    // Stats footer
-    const counts = { patient: 0, ai: 0, system: 0 };
-    messages.forEach((m) => {
-      const s = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
-      counts[s]++;
-    });
-    $("#chatViewerStats").innerHTML = `
-    <span class="cv-msg-count"><span class="dot patient-dot"></span>${counts.patient} patient</span>
-    <span class="cv-msg-count"><span class="dot ai-dot"></span>${counts.ai} AI</span>
-    ${counts.system ? `<span class="cv-msg-count"><span class="dot system-dot"></span>${counts.system} system</span>` : ""}
-  `;
-
-    // Prescribe button
-    const rxBtn = $("#chatViewerPrescribeBtn");
-    rxBtn.style.display = "";
-    rxBtn.dataset.sessionId = sessionId;
-    rxBtn.dataset.patientId = patientId;
-
-    // Open modal
+    // Show modal immediately with loading state
+    $("#chatViewerTitle").textContent = `Chat #${chatDbId}`;
+    $("#chatViewerSub").textContent = "Loading messages…";
+    $("#chatViewerMessages").innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner"></span></div>';
+    $("#chatViewerPrescribeBtn").style.display = "none";
+    $("#chatViewerStats").innerHTML = "";
     $("#chatViewerModal").classList.add("open");
 
-    // Scroll to bottom
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
-    });
+    try {
+      const session = await apiJSON(`/doctor/patients/${pid}/chat/${chatDbId}`);
+      const messages = session.messages || [];
+      const summary = session.summary;
+
+      $("#chatViewerTitle").textContent = `Chat: ${session.session_id || chatDbId}`;
+      $("#chatViewerSub").textContent = `${patientName} · ${messages.length} messages · ${formatDate(session.created_at)}`;
+
+      const el = $("#chatViewerMessages");
+
+      if (!messages.length) {
+        el.innerHTML = '<div class="empty-state" style="padding:40px 20px"><div class="empty-state-icon" aria-hidden="true">💬</div><div class="empty-state-title">Empty session</div><div class="empty-state-sub">No messages in this conversation</div></div>';
+      } else {
+        let html = "";
+        messages.forEach((m) => {
+          const sender = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
+          const avatarMap = { patient: patientInitial, system: "⚙", ai: "🤖" };
+          const senderLabel = { patient: patientName, system: "System", ai: "AI Assistant" };
+          const text = esc(m.text || "").replace(/\n/g, "<br>");
+          html += `<div class="cv-msg ${sender}">
+            <div class="cv-msg-avatar" aria-hidden="true">${avatarMap[sender]}</div>
+            <div>
+              <div class="cv-msg-bubble">${text}</div>
+              <div class="cv-msg-meta">${esc(senderLabel[sender])}${m.timestamp ? " · " + formatTime(m.timestamp) : ""}</div>
+            </div>
+          </div>`;
+        });
+
+        if (summary && typeof summary === "object") {
+          html += '<div class="cv-divider">Clinical Summary</div>';
+          html += '<div class="cv-summary-inline"><div class="summary-card-title">— AI Summary —</div>';
+          html += Object.entries(summary).map(([k, v]) => {
+            const key = esc(k.replace(/_/g, " "));
+            const val = k === "priority_score"
+              ? `<span class="priority ${priorityClass(v)}">${esc(String(v))}/10</span>`
+              : esc(String(v));
+            return `<div class="summary-row"><span class="summary-key">${key}</span><span class="summary-val">${val}</span></div>`;
+          }).join("") + "</div>";
+        }
+        el.innerHTML = html;
+      }
+
+      // Stats footer
+      const counts = { patient: 0, ai: 0, system: 0 };
+      messages.forEach((m) => {
+        const s = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
+        counts[s]++;
+      });
+      $("#chatViewerStats").innerHTML = `
+        <span class="cv-msg-count"><span class="dot patient-dot"></span>${counts.patient} patient</span>
+        <span class="cv-msg-count"><span class="dot ai-dot"></span>${counts.ai} AI</span>
+        ${counts.system ? `<span class="cv-msg-count"><span class="dot system-dot"></span>${counts.system} system</span>` : ""}`;
+
+      const rxBtn = $("#chatViewerPrescribeBtn");
+      rxBtn.style.display = "";
+      rxBtn.dataset.sessionId = session.session_id || rawId;
+      rxBtn.dataset.patientId = patientId;
+
+      requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+
+    } catch (err) {
+      $("#chatViewerMessages").innerHTML = `
+        <div class="empty-state" style="padding:40px 20px">
+          <div class="empty-state-title">Could not load chat</div>
+          <div class="empty-state-sub">${esc(err.message)}</div>
+        </div>`;
+    }
   }
 
   function closeChatViewer() {
@@ -1124,13 +1123,13 @@ const App = (() => {
       const pc = priorityClass(score);
 
       return `<div class="session-item" role="option" aria-selected="${active}" data-action="open-session" data-session-id="${esc(s.session_id)}" tabindex="0">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
-          <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(displayName)}</div>
-          ${score ? `<span class="priority ${pc}" style="flex-shrink:0;margin-left:6px">${esc(String(score))}</span>` : ""}
-        </div>
-        <div class="session-preview">${preview}…</div>
-        <div class="session-date">${formatDate(s.created_at)}</div>
-      </div>`;
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+            <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(displayName)}</div>
+            ${score ? `<span class="priority ${pc}" style="flex-shrink:0;margin-left:6px">${esc(String(score))}</span>` : ""}
+          </div>
+          <div class="session-preview">${preview}…</div>
+          <div class="session-date">${formatDate(s.created_at)}</div>
+        </div>`;
     }).join("");
   }
 
@@ -1217,11 +1216,11 @@ const App = (() => {
     div.setAttribute("role", "article");
     const text = esc(msg.text || "").replace(/\n/g, "<br>");
     div.innerHTML = `<div class="msg-avatar" aria-hidden="true">${avatarMap[sc]}</div>
-      <div>
-        <div class="msg-bubble">${text}</div>
-        ${msg.is_file ? '<div class="msg-file-tag">📎 Attached file</div>' : ""}
-        <div class="msg-time">${formatTime(msg.timestamp)}</div>
-      </div>`;
+        <div>
+          <div class="msg-bubble">${text}</div>
+          ${msg.is_file ? '<div class="msg-file-tag">📎 Attached file</div>' : ""}
+          <div class="msg-time">${formatTime(msg.timestamp)}</div>
+        </div>`;
     el.appendChild(div);
     if (scroll) el.scrollTop = el.scrollHeight;
   }
@@ -1360,11 +1359,11 @@ const App = (() => {
 
       if (!appts || appts.length === 0) {
         container.innerHTML = `
-          <div class="empty-state" style="padding:60px 20px">
-            <div class="empty-state-icon" aria-hidden="true">📅</div>
-            <div class="empty-state-title">No appointments</div>
-            <div class="empty-state-sub">You have no upcoming appointments scheduled.</div>
-          </div>`;
+            <div class="empty-state" style="padding:60px 20px">
+              <div class="empty-state-icon" aria-hidden="true">📅</div>
+              <div class="empty-state-title">No appointments</div>
+              <div class="empty-state-sub">You have no upcoming appointments scheduled.</div>
+            </div>`;
         return;
       }
 
@@ -1375,17 +1374,17 @@ const App = (() => {
         const statusVal = apt.status?.value || apt.status || 'scheduled';
         const statusClass = statusVal === 'scheduled' ? 'upcoming' : statusVal;
         return `
-        <div class="appointment-card">
-          <div class="appointment-details">
-            <div class="apt-date">${dateStr}</div>
-            <div class="apt-title">${state.user.role === 'doctor' ? 'Patient ID: ' + apt.patient_id : 'Appointment #' + apt.id}</div>
-            <div class="apt-sub">${apt.meeting_link ? `<a href="${esc(apt.meeting_link)}" target="_blank" style="color:var(--accent)">Join Google Meet</a>` : 'No meeting link yet'}</div>
-          </div>
-          <div class="apt-actions">
-            <span class="apt-status ${esc(statusClass)}">${esc(statusVal)}</span>
-            ${statusVal === 'scheduled' ? `<button class="btn btn-ghost" data-action="cancel-apt" data-apt-id="${apt.id}" style="color:var(--red); font-size:12px;">Cancel</button>` : ''}
-          </div>
-        </div>`;
+          <div class="appointment-card">
+            <div class="appointment-details">
+              <div class="apt-date">${dateStr}</div>
+              <div class="apt-title">${state.user.role === 'doctor' ? 'Patient ID: ' + apt.patient_id : 'Appointment #' + apt.id}</div>
+              <div class="apt-sub">${apt.meeting_link ? `<a href="${esc(apt.meeting_link)}" target="_blank" style="color:var(--accent)">Join Google Meet</a>` : 'No meeting link yet'}</div>
+            </div>
+            <div class="apt-actions">
+              <span class="apt-status ${esc(statusClass)}">${esc(statusVal)}</span>
+              ${statusVal === 'scheduled' ? `<button class="btn btn-ghost" data-action="cancel-apt" data-apt-id="${apt.id}" style="color:var(--red); font-size:12px;">Cancel</button>` : ''}
+            </div>
+          </div>`;
       }).join('');
     } catch (e) {
       console.error(e);
@@ -1432,17 +1431,17 @@ const App = (() => {
       const isProc = f.transcript?.includes("being analyzed") || f.drive_file_id === "processing...";
       const hasTr = f.transcript && f.transcript !== "User Uploaded Record" && !isProc;
       return `<div class="file-card" role="listitem" data-action="view-file" data-file-id="${f.id}" tabindex="0">
-        <div class="file-card-actions">
-          <button class="file-delete-btn" data-action="delete-file" data-file-id="${f.id}" aria-label="Delete ${esc(f.file_name)}" type="button">
-            <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,01-2,2H7a2,2,0,01-2-2V6m3,0V4a2,2,0,012-2h4a2,2,0,012,2v2"/></svg>
-          </button>
-        </div>
-        <div class="file-icon ${info.cls}" aria-hidden="true">${info.svg}</div>
-        <div class="file-name">${esc(f.file_name)}</div>
-        <div class="file-meta">${formatDate(f.created_at)} · ${esc(f.file_type || "file")}</div>
-        ${isProc ? '<div class="file-transcript" style="color:var(--amber);font-style:italic">⟳ Processing…</div>' : ""}
-        ${hasTr ? `<div class="file-transcript">${esc(f.transcript)}</div>` : ""}
-      </div>`;
+          <div class="file-card-actions">
+            <button class="file-delete-btn" data-action="delete-file" data-file-id="${f.id}" aria-label="Delete ${esc(f.file_name)}" type="button">
+              <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6v14a2,2,0,01-2,2H7a2,2,0,01-2-2V6m3,0V4a2,2,0,012-2h4a2,2,0,012,2v2"/></svg>
+            </button>
+          </div>
+          <div class="file-icon ${info.cls}" aria-hidden="true">${info.svg}</div>
+          <div class="file-name">${esc(f.file_name)}</div>
+          <div class="file-meta">${formatDate(f.created_at)} · ${esc(f.file_type || "file")}</div>
+          ${isProc ? '<div class="file-transcript" style="color:var(--amber);font-style:italic">⟳ Processing…</div>' : ""}
+          ${hasTr ? `<div class="file-transcript">${esc(f.transcript)}</div>` : ""}
+        </div>`;
     }).join("");
 
     const processing = state.files.some((f) => f.drive_file_id === "processing...");
@@ -2014,21 +2013,21 @@ const App = (() => {
         // Build a simple inline modal using the confirm modal as a base
         $("#confirmTitle").textContent = "Book Appointment";
         $("#confirmBody").innerHTML = `
-          <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
-            <div>
-              <label class="form-label" for="bookDoctorId">Doctor ID</label>
-              <input type="number" class="form-input" id="bookDoctorId" placeholder="Enter doctor's user ID" min="1" />
-            </div>
-            <div>
-              <label class="form-label" for="bookSessionSel">Chat Session</label>
-              <select class="form-select" id="bookSessionSel">${sessionOptions}</select>
-            </div>
-            <div>
-              <label class="form-label" for="bookDateTime">Date &amp; Time</label>
-              <input type="datetime-local" class="form-input" id="bookDateTime"
-                min="${new Date().toISOString().slice(0, 16)}" />
-            </div>
-          </div>`;
+            <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
+              <div>
+                <label class="form-label" for="bookDoctorId">Doctor ID</label>
+                <input type="number" class="form-input" id="bookDoctorId" placeholder="Enter doctor's user ID" min="1" />
+              </div>
+              <div>
+                <label class="form-label" for="bookSessionSel">Chat Session</label>
+                <select class="form-select" id="bookSessionSel">${sessionOptions}</select>
+              </div>
+              <div>
+                <label class="form-label" for="bookDateTime">Date &amp; Time</label>
+                <input type="datetime-local" class="form-input" id="bookDateTime"
+                  min="${new Date().toISOString().slice(0, 16)}" />
+              </div>
+            </div>`;
         $("#confirmOkBtn").textContent = "Book";
         $("#confirmOkBtn").className = "btn btn-primary";
         $("#confirmModal").classList.add("open");
