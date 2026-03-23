@@ -5,7 +5,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from typing import List
 from datetime import datetime
 import uuid
-
+import audit_service
 import models
 import schemas
 import pdf_generation_service
@@ -23,35 +23,122 @@ router = APIRouter(
 
 
 @router.get("/patients/", response_model=List[schemas.UserRead])
-def get_all_patients(db: Session = Depends(get_db)):
-    # Fetch patients and their latest chat summaries
+def get_all_patients(
+    skip: int = 0,  # <-- Start at index 0 by default
+    limit: int = 50,  # <-- Only fetch 50 patients at a time by default
+    db: Session = Depends(get_db),
+):
+    """Fetches a paginated list of all patients."""
     patients = (
-        db.query(models.User).filter(models.User.role == models.UserRole.PATIENT).all()
+        db.query(models.User)
+        .filter(models.User.role == models.UserRole.PATIENT)
+        .offset(skip)  # Skip the first N records
+        .limit(limit)  # Only take the next N records
+        .all()
     )
 
-    # Logic to sort patients based on the highest priority_score found in their ChatHistory
-    # (This can be done in Python for simplicity or a complex SQL join)
     return patients
 
 
-@router.get(
-    "/patients/{patient_id}/summaries", response_model=List[schemas.ChatHistoryRead]
-)
-def get_patient_summaries(patient_id: int, db: Session = Depends(get_db)):
-    """Fetches chat sessions and SORTS them by priority score."""
+# @router.get(
+#     "/patients/{patient_id}/summaries", response_model=List[schemas.ChatHistoryRead]
+# )
+# def get_patient_summaries(patient_id: int, db: Session = Depends(get_db)):
+#     """Fetches chat sessions and SORTS them by priority score."""
+#     sessions = (
+#         db.query(models.ChatHistory)
+#         .filter(models.ChatHistory.patient_id == patient_id)
+#         .all()
+#     )
+
+#     def get_priority(session):
+#         if session.summary and isinstance(session.summary, dict):
+#             return session.summary.get("priority_score", 0)
+#         return 0
+
+#     sessions.sort(key=get_priority, reverse=True)
+#     return sessions
+
+
+@router.get("/patients/{patient_id}/summaries")
+def get_patient_timeline(
+    patient_id: int,
+    skip: int = 0,  # <-- Add pagination params here too
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_doctor: schemas.TokenData = Depends(get_current_doctor),
+):
+    """Fetches a paginated, chronological timeline of AI chat summaries and uploaded files."""
+
+    # (Assuming you added the HIPAA Audit Log here from our last step!)
+    import audit_service
+
+    audit_service.log_action(
+        db=db,
+        actor_id=current_doctor.user_id,
+        patient_id=patient_id,
+        action="VIEWED_PATIENT_TIMELINE",
+    )
+
+    # 1. Fetch all Chat Sessions
     sessions = (
         db.query(models.ChatHistory)
         .filter(models.ChatHistory.patient_id == patient_id)
         .all()
     )
 
-    def get_priority(session):
-        if session.summary and isinstance(session.summary, dict):
-            return session.summary.get("priority_score", 0)
-        return 0
+    # 2. Fetch all Medical Files
+    files = (
+        db.query(models.MedicalMedia)
+        .filter(models.MedicalMedia.patient_id == patient_id)
+        .all()
+    )
 
-    sessions.sort(key=get_priority, reverse=True)
-    return sessions
+    timeline = []
+
+    # 3. Format Chat Summaries
+    for session in sessions:
+        if session.summary:
+            priority = (
+                session.summary.get("priority_score", 0)
+                if isinstance(session.summary, dict)
+                else 0
+            )
+            timeline.append(
+                {
+                    "type": "triage_summary",
+                    "id": f"chat_{session.id}",
+                    "title": "AI Triage Assessment",
+                    "created_at": session.created_at,
+                    "priority_score": priority,
+                    "content": session.summary,
+                }
+            )
+
+    # 4. Format Medical Files
+    for f in files:
+        timeline.append(
+            {
+                "type": "medical_record",
+                "id": f"file_{f.id}",
+                "title": f.file_name,
+                "created_at": f.created_at,
+                "priority_score": None,
+                "content": {
+                    "file_type": f.file_type,
+                    "transcript": f.transcript,
+                    "url": f.drive_view_link,
+                },
+            }
+        )
+
+    # 5. Sort chronologically (Newest first)
+    timeline.sort(key=lambda x: x["created_at"], reverse=True)
+
+    # 6. --- NEW: APPLY PAGINATION VIA PYTHON SLICING ---
+    paginated_timeline = timeline[skip : skip + limit]
+
+    return paginated_timeline
 
 
 @router.post("/prescribe/")
@@ -125,8 +212,20 @@ def create_prescription(
 
 
 @router.get("/patients/{patient_id}/files", response_model=List[schemas.MediaRead])
-def get_patient_files_for_doctor(patient_id: int, db: Session = Depends(get_db)):
+def get_patient_files_for_doctor(
+    patient_id: int,
+    db: Session = Depends(get_db),
+    current_doctor: schemas.TokenData = Depends(get_current_doctor),  # <-- Added
+):
     """Allows doctors to see every document, OCR result, and prescription for a specific patient."""
+    # --- 🔒 HIPAA AUDIT LOGGING ---
+    audit_service.log_action(
+        db=db,
+        actor_id=current_doctor.user_id,
+        patient_id=patient_id,
+        action="VIEWED_ALL_PATIENT_FILES",
+    )
+    # ------------------------------
     return (
         db.query(models.MedicalMedia)
         .filter(models.MedicalMedia.patient_id == patient_id)
