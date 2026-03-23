@@ -1,6 +1,6 @@
 # backend/routers/user.py
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 import shutil
 import os
@@ -167,3 +167,29 @@ async def upload_profile_picture(
         # 6. Always clean up the local temporary file
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+@router.get("/doctors/")
+def get_all_doctors(
+    db: Session = Depends(get_db),
+    current_user: schemas.TokenData = Depends(get_current_user),
+):
+    """Returns all doctors with their profile names — used by patients when booking appointments."""
+    doctors = (
+        db.query(models.User)
+        .filter(models.User.role == models.UserRole.DOCTOR)
+        .options(joinedload(models.User.profile))
+        .all()
+    )
+    return [
+        {
+            "id": d.id,
+            "email": d.email,
+            "profile": {
+                "full_name": d.profile.full_name if d.profile else None,
+            }
+            if d.profile
+            else None,
+        }
+        for d in doctors
+    ]

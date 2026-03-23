@@ -2015,43 +2015,62 @@ const App = (() => {
     const bookBtn = $("#bookAppointmentBtn");
     if (bookBtn) {
       bookBtn.addEventListener("click", async () => {
-        // ✅ Fix: backend AppointmentCreate schema needs doctor_id, session_id, scheduled_time
-        // Old code sent appointment_date + reason which the backend doesn't accept
-
-        // Get available sessions so user can pick one
+        // Fetch doctors and sessions in parallel
+        let doctorOptions = '<option value="">Loading doctors…</option>';
         let sessionOptions = '<option value="">Select a chat session</option>';
-        try {
-          const sessions = await apiJSON("/users/me/chats/");
-          if (sessions.length) {
-            sessionOptions = '<option value="">Select a session</option>' +
-              sessions.map(s => `<option value="${esc(s.session_id)}">Session ${s.session_id.slice(0, 16)}… (${formatDate(s.created_at)})</option>`).join('');
-          }
-        } catch (e) { /* leave default */ }
 
-        // Build a simple inline modal using the confirm modal as a base
+        try {
+          const [doctors, sessions] = await Promise.allSettled([
+            apiJSON("/users/doctors/"),       // new lightweight endpoint
+            apiJSON("/users/me/chats/"),
+          ]);
+
+          // Build doctor dropdown — show name (email fallback), store id as value
+          if (doctors.status === "fulfilled" && doctors.value.length) {
+            doctorOptions = '<option value="">Select your doctor</option>' +
+              doctors.value.map(d => {
+                const name = d.profile?.full_name || d.email;
+                return `<option value="${d.id}">${esc(name)}</option>`;
+              }).join('');
+          } else {
+            doctorOptions = '<option value="">No doctors found</option>';
+          }
+
+          // Build session dropdown — use first patient message as label
+          if (sessions.status === "fulfilled" && sessions.value.length) {
+            sessionOptions = '<option value="">Select a session</option>' +
+              sessions.value.map(s => {
+                const firstMsg = s.messages?.find(m => m.sender === "patient");
+                const label = firstMsg
+                  ? getSessionDisplayName(firstMsg.text)
+                  : `Session ${formatDate(s.created_at)}`;
+                return `<option value="${esc(s.session_id)}">${esc(label)}</option>`;
+              }).join('');
+          }
+        } catch (e) { /* leave defaults */ }
+
         $("#confirmTitle").textContent = "Book Appointment";
         $("#confirmBody").innerHTML = `
-            <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
-              <div>
-                <label class="form-label" for="bookDoctorId">Doctor ID</label>
-                <input type="number" class="form-input" id="bookDoctorId" placeholder="Enter doctor's user ID" min="1" />
-              </div>
-              <div>
-                <label class="form-label" for="bookSessionSel">Chat Session</label>
-                <select class="form-select" id="bookSessionSel">${sessionOptions}</select>
-              </div>
-              <div>
-                <label class="form-label" for="bookDateTime">Date &amp; Time</label>
-                <input type="datetime-local" class="form-input" id="bookDateTime"
-                  min="${new Date().toISOString().slice(0, 16)}" />
-              </div>
-            </div>`;
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
+            <div>
+              <label class="form-label" for="bookDoctorSel">Doctor</label>
+              <select class="form-select" id="bookDoctorSel">${doctorOptions}</select>
+            </div>
+            <div>
+              <label class="form-label" for="bookSessionSel">Chat Session</label>
+              <select class="form-select" id="bookSessionSel">${sessionOptions}</select>
+            </div>
+            <div>
+              <label class="form-label" for="bookDateTime">Date &amp; Time</label>
+              <input type="datetime-local" class="form-input" id="bookDateTime"
+                min="${new Date().toISOString().slice(0, 16)}" />
+            </div>
+          </div>`;
         $("#confirmOkBtn").textContent = "Book";
         $("#confirmOkBtn").className = "btn btn-primary";
         $("#confirmModal").classList.add("open");
         $("#confirmOkBtn").focus();
 
-        // Override confirm resolver to do the booking
         state.confirmResolver = async (ok) => {
           state.confirmResolver = null;
           $("#confirmModal").classList.remove("open");
@@ -2059,7 +2078,7 @@ const App = (() => {
           $("#confirmOkBtn").className = "btn btn-danger";
           if (!ok) return;
 
-          const doctorId = parseInt($("#bookDoctorId")?.value);
+          const doctorId = parseInt($("#bookDoctorSel")?.value);
           const sessionId = $("#bookSessionSel")?.value;
           const dt = $("#bookDateTime")?.value;
 
