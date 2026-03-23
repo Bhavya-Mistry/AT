@@ -834,10 +834,13 @@ const App = (() => {
     const name = patient?.profile?.full_name || patient?.email || "Unknown";
     const initial = name[0]?.toUpperCase() || "?";
 
-    // Render header
+    // Render header with a named avatar element we can update with the real photo
     $("#patientDetailHeader").innerHTML = `
       <div class="patient-detail-header">
-        <div class="profile-avatar" style="width:56px;height:56px;font-size:22px">${esc(initial)}</div>
+        <div class="profile-avatar" id="patientAvatarEl" style="width:56px;height:56px;font-size:22px;position:relative;overflow:hidden;flex-shrink:0;">
+          <span id="patientAvatarInitial" style="position:relative;z-index:1;">${esc(initial)}</span>
+          <img id="patientAvatarImg" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;z-index:2;" />
+        </div>
         <div class="profile-info">
           <div class="profile-name">${esc(name)}</div>
           <div class="profile-email">${esc(patient?.email || "")}</div>
@@ -848,11 +851,27 @@ const App = (() => {
         </div>
       </div>`;
 
-    // Load summaries
+    // Fetch patient's profile picture — doctor endpoint, authenticated
+    if (patient?.profile?.profile_pic_drive_id) {
+      try {
+        const res = await fetch(
+          `${CONFIG.API_BASE}/users/${patientId}/profile-pic/`,
+          { headers: { "Authorization": `Bearer ${state.token}` } }
+        );
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const img = $("#patientAvatarImg");
+          const txt = $("#patientAvatarInitial");
+          if (img) { img.src = url; img.style.display = "block"; }
+          if (txt) txt.style.display = "none";
+        }
+      } catch { /* silently fall back to initials */ }
+    }
+
+    // Load summaries and files
     await loadPatientSummaries(patientId);
     await loadPatientFiles(patientId);
-
-    // Show summaries tab by default
     activateDetailTab("summaries");
   }
 
@@ -1621,19 +1640,52 @@ const App = (() => {
   // ═══════════════════════════════════════
   // PROFILE
   // ═══════════════════════════════════════
-  function clearProfileForm() {
-    $("#profFullName").value = "";
-    $("#profContact").value = "";
-    $("#profAddress").value = "";
-    $("#profBlood").value = "";
-    $("#profStatus").value = "stable";
-    $("#profileName").textContent = "\u2014";
+  async function loadProfilePic(hasPic, initial) {
+    // Fetches the current user's own profile pic with auth header.
+    // The endpoint looks up the drive ID from the DB itself — no param needed,
+    // which prevents any cross-user leakage.
+    const avatarImg = $("#profileAvatarImg");
+    const avatarText = $("#profileAvatarText");
+    const sidebarAv = $("#sidebarAvatar");
+
+    if (!hasPic) {
+      if (avatarImg) { avatarImg.style.display = "none"; avatarImg.src = ""; }
+      if (avatarText) { avatarText.style.display = "flex"; avatarText.textContent = initial; }
+      if (sidebarAv) sidebarAv.textContent = initial;
+      return;
+    }
+
+    try {
+      const res = await fetch(`${CONFIG.API_BASE}/users/me/profile-pic/`, {
+        headers: { "Authorization": `Bearer ${state.token}` }
+      });
+
+      if (!res.ok) throw new Error("No pic");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      if (avatarImg) {
+        if (avatarImg._blobUrl) URL.revokeObjectURL(avatarImg._blobUrl);
+        avatarImg._blobUrl = url;
+        avatarImg.src = url;
+        avatarImg.style.cssText = "display:block;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;z-index:2;";
+      }
+      if (avatarText) avatarText.style.display = "none";
+
+      if (sidebarAv) {
+        if (sidebarAv._blobUrl) URL.revokeObjectURL(sidebarAv._blobUrl);
+        sidebarAv._blobUrl = url;
+        sidebarAv.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      }
+    } catch {
+      if (avatarImg) { avatarImg.style.display = "none"; }
+      if (avatarText) { avatarText.style.display = "flex"; avatarText.textContent = initial; }
+      if (sidebarAv) sidebarAv.textContent = initial;
+    }
   }
 
   async function loadProfile() {
-    // Always clear first to prevent stale data from showing
-    clearProfileForm();
-
     try {
       const res = await api("/users/me/profile/", { _abortKey: "load-profile" });
 
@@ -1647,51 +1699,24 @@ const App = (() => {
         $("#profContact").value = profile.contact_no || "";
         $("#profAddress").value = profile.address || "";
         $("#profBlood").value = profile.blood_group || "";
-        $("#profStatus").value = profile.current_status || "stable";
+        $("#profStatus").value = profile.current_status || "mild";
 
-        // Update sidebar and profile names
+        // Update sidebar and profile header names
         if ($("#sidebarEmail")) $("#sidebarEmail").textContent = displayName;
         if ($("#profileName")) $("#profileName").textContent = displayName;
 
-        // Handle Profile Picture vs Initial Letter
-        const avatarImg = $("#profileAvatarImg");
-        const avatarText = $("#profileAvatarText");
-
-        if (profile.profile_pic_drive_id) {
-          // User HAS a picture: Show Image, Hide Text
-          const imgUrl = `${CONFIG.API_BASE}/media/view/${profile.profile_pic_drive_id}`;
-
-          if (avatarImg) {
-            avatarImg.src = imgUrl;
-            avatarImg.style.display = "block";
-          }
-          if (avatarText) avatarText.style.display = "none";
-
-          // Update the tiny sidebar avatar!
-          if ($("#sidebarAvatar")) {
-            $("#sidebarAvatar").innerHTML = `<img src="${imgUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
-          }
-        } else {
-          // NO picture: Show Text, Hide Image
-          if (avatarImg) avatarImg.style.display = "none";
-          if (avatarText) {
-            avatarText.style.display = "block";
-            avatarText.textContent = initial;
-          }
-          if ($("#sidebarAvatar")) $("#sidebarAvatar").innerHTML = initial;
-        }
+        // Load profile picture via authenticated blob fetch
+        await loadProfilePic(!!profile.profile_pic_drive_id, initial);
 
       } else if (res.status === 404) {
-        // No profile yet — form already cleared above
-        console.log("[Profile] No existing profile found");
         const initial = state.user?.email?.[0]?.toUpperCase() || "U";
-        if ($("#profileAvatarText")) $("#profileAvatarText").textContent = initial;
-        if ($("#sidebarAvatar")) $("#sidebarAvatar").innerHTML = initial;
+        if ($("#profileAvatarText")) { $("#profileAvatarText").style.display = "flex"; $("#profileAvatarText").textContent = initial; }
+        if ($("#profileAvatarImg")) $("#profileAvatarImg").style.display = "none";
+        if ($("#sidebarAvatar")) $("#sidebarAvatar").textContent = initial;
+        if ($("#profileName")) $("#profileName").textContent = state.user?.email || "\u2014";
       }
     } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("[Profile] Failed to load:", err);
-      }
+      if (err.name !== "AbortError") console.error("[Profile] Failed to load:", err);
     }
   }
 
@@ -1705,8 +1730,8 @@ const App = (() => {
       current_status: $("#profStatus").value,
     };
 
-    if (!body.full_name || !body.contact_no) {
-      toast("Name and contact required", "error");
+    if (!body.full_name) {
+      toast("Full name is required", "error");
       return;
     }
 
@@ -1717,7 +1742,10 @@ const App = (() => {
       const res = await api("/users/me/profile/", { method: "POST", body: JSON.stringify(body) });
       if (res.ok) {
         toast("Profile saved!", "success");
-        // Reload the profile to cleanly update names/avatars without breaking images
+        // Update sidebar name immediately without wiping the form
+        if ($("#sidebarEmail")) $("#sidebarEmail").textContent = body.full_name;
+        if ($("#profileName")) $("#profileName").textContent = body.full_name;
+        // Reload to sync any server-side changes (but form is already populated so no flash)
         loadProfile();
       } else {
         const d = await res.json();
@@ -1971,12 +1999,17 @@ const App = (() => {
           });
           if (!res.ok) throw new Error("Failed to upload image");
 
-          toast("Profile picture updated successfully!", "success");
-          loadProfile(); // Reload the profile to fetch the new image
+          const data = await res.json();
+          toast("Profile picture updated!", "success");
+
+          // Show the new image immediately
+          const displayName = $("#profileName")?.textContent || state.user?.email || "U";
+          const initial = displayName.charAt(0).toUpperCase();
+          await loadProfilePic(true, initial);
         } catch (err) {
           toast(err.message, "error");
         } finally {
-          e.target.value = ""; // Reset input
+          e.target.value = "";
         }
       });
     }

@@ -15,6 +15,7 @@
         href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap"
         rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body>
@@ -37,6 +38,10 @@
                 <h1 class="auth-heading">Welcome back</h1>
                 <p class="auth-sub">Sign in to your portal</p>
                 <div class="auth-error" id="loginError" role="alert"></div>
+
+                <div id="googleSignInContainer" style="display:flex;justify-content:center;margin-bottom:20px;"></div>
+                <div class="auth-divider">— OR —</div>
+
                 <form id="loginFormEl" autocomplete="on" novalidate>
                     <div class="form-group">
                         <label class="form-label" for="loginEmail">Email address</label>
