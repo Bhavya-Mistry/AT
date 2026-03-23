@@ -1,10 +1,14 @@
 # backend/routers/user.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
+import shutil
+import os
+import uuid
 
 import models
 import schemas
+import drive_service  # <-- Add this import
 from db import get_db
 from security import get_current_user
 
@@ -85,3 +89,81 @@ def get_user_profile(
         raise HTTPException(status_code=404, detail="Profile not found")
 
     return db_profile
+
+
+@router.post("/me/profile-pic/")
+async def upload_profile_picture(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: schemas.TokenData = Depends(get_current_user),
+):
+    user_id = current_user.user_id
+
+    # 1. Validate file type
+    if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+        raise HTTPException(
+            status_code=400, detail="Only image files (JPEG, PNG, WEBP) are allowed"
+        )
+
+    # 2. Setup temporary local file
+    file_ext = file.filename.split(".")[-1]
+    unique_name = f"profile_pic_{user_id}_{uuid.uuid4().hex[:8]}.{file_ext}"
+    temp_path = f"temp_{unique_name}"
+
+    try:
+        # Save file locally
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # 3. Upload to Google Drive
+        drive_data = drive_service.upload_to_drive(
+            temp_path, unique_name, file.content_type
+        )
+
+        if not drive_data:
+            raise HTTPException(
+                status_code=500, detail="Failed to upload image to Cloud Storage"
+            )
+
+        # 4. Fetch the user's profile
+        db_profile = (
+            db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
+        )
+
+        # If the user doesn't have a profile yet, create a blank one
+        if not db_profile:
+            db_profile = models.Profile(
+                user_id=user_id,
+                full_name="New User",
+                contact_no="",
+                address="",
+                blood_group="",
+                current_status=models.MedicalStatus.MILD,
+            )
+            db.add(db_profile)
+            db.commit()
+            db.refresh(db_profile)
+
+        # Optional cleanup: Delete the old profile picture from Drive to save space
+        if db_profile.profile_pic_drive_id:
+            try:
+                drive_service.delete_file_from_drive(db_profile.profile_pic_drive_id)
+            except Exception as e:
+                print(f"Note: Could not delete old profile picture: {e}")
+
+        # 5. Update the database with the new Drive ID
+        db_profile.profile_pic_drive_id = drive_data["file_id"]
+        db.commit()
+
+        return {
+            "message": "Profile picture updated successfully",
+            "profile_pic_drive_id": drive_data["file_id"],
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        # 6. Always clean up the local temporary file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
