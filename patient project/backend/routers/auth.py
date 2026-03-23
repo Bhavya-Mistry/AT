@@ -8,6 +8,10 @@ import schemas
 from db import get_db
 from security import get_password_hash, verify_password, create_access_token
 
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from dotenv import load_dotenv
+
 # Create a router instance
 router = APIRouter(
     tags=["Authentication"]  # This organizes your Swagger UI nicely
@@ -55,3 +59,60 @@ def login(
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/google", response_model=schemas.Token)
+def google_login(request: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
+    try:
+        # 1. Verify the token with Google
+        idinfo = id_token.verify_oauth2_token(
+            request.token, requests.Request(), GOOGLE_CLIENT_ID
+        )
+
+        # 2. Extract user info
+        email = idinfo.get("email")
+        if not email:
+            raise HTTPException(
+                status_code=400, detail="Google token did not contain an email"
+            )
+
+        # 3. Check if user already exists in your DB
+        user = db.query(models.User).filter(models.User.email == email).first()
+
+        # 4. If they don't exist, create an account automatically!
+        if not user:
+            user = models.User(
+                email=email,
+                hashed_password="",  # No password needed since they use Google
+                role=models.UserRole.PATIENT,
+                has_signed_baa=True,  # Assuming OAuth implies consent, or handle on frontend
+                is_policy_accepted=True,
+                is_2fa_enabled=False,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+            # Optional: Auto-create a blank Profile with their Google Name
+            google_name = idinfo.get("name", "New User")
+            new_profile = models.Profile(
+                user_id=user.id,
+                full_name=google_name,
+                contact_no="",
+                address="",
+                blood_group="",
+                current_status=models.MedicalStatus.MILD,
+            )
+            db.add(new_profile)
+            db.commit()
+
+        # 5. Generate YOUR local JWT token so the rest of the app works normally
+        access_token = create_access_token(
+            data={"user_id": user.id, "email": user.email, "role": user.role}
+        )
+
+        return {"access_token": access_token, "token_type": "bearer"}
+
+    except ValueError:
+        # Invalid token
+        raise HTTPException(status_code=401, detail="Invalid Google token")
