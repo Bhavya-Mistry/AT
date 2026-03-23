@@ -5,6 +5,10 @@ from datetime import datetime
 from models import AppointmentStatus
 
 
+class GoogleAuthRequest(BaseModel):
+    token: str
+
+
 # --- PROFILE SCHEMAS ---
 class ProfileBase(BaseModel):
     full_name: str
