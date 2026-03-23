@@ -11,11 +11,14 @@ from security import get_password_hash, verify_password, create_access_token
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from dotenv import load_dotenv
+import os
 
 # Create a router instance
 router = APIRouter(
     tags=["Authentication"]  # This organizes your Swagger UI nicely
 )
+load_dotenv()
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 
 @router.post("/users/", response_model=schemas.UserRead)
