@@ -608,21 +608,23 @@ const App = (() => {
 
       allSummaries.forEach((sessions, idx) => {
         const patient = state.patients[idx];
-        totalSessions += sessions.length;
+        // Only count triage_summary type items (not file records)
+        const triageSessions = sessions.filter((s) => s.type === "triage_summary");
+        totalSessions += triageSessions.length;
 
         let patientMaxPriority = 0;
 
-        sessions.forEach((s) => {
-          if (s.summary) {
-            const score = s.summary.priority_score;
-            if (score) {
-              totalPriority += score;
-              priorityCount++;
-              if (score > patientMaxPriority) patientMaxPriority = score;
-            }
-            if (!s.summary.reviewed) {
-              pendingCount++;
-            }
+        triageSessions.forEach((s) => {
+          // ✅ Fix: backend returns priority_score at top level and inside content
+          const score = s.priority_score || s.content?.priority_score;
+          if (score) {
+            totalPriority += score;
+            priorityCount++;
+            if (score > patientMaxPriority) patientMaxPriority = score;
+          }
+          // Count as pending if no reviewed flag in content
+          if (!s.content?.reviewed) {
+            pendingCount++;
           }
         });
 
@@ -630,7 +632,7 @@ const App = (() => {
           highPriorityPatients.push({
             ...patient,
             maxPriority: patientMaxPriority,
-            sessionCount: sessions.length,
+            sessionCount: triageSessions.length,
           });
         }
       });
@@ -710,19 +712,19 @@ const App = (() => {
     }
 
     el.innerHTML = recent.map((s) => {
-      const score = s.summary?.priority_score;
+      // ✅ Fix: score is at s.priority_score (top-level), not s.summary.priority_score
+      const score = s.priority_score || s.content?.priority_score;
       const pc = priorityClass(score);
-      const msgCount = s.messages?.length || 0;
-      const lastMsg = s.messages?.slice().reverse().find((m) => m.sender !== "system");
-      const preview = esc((lastMsg?.text || "No messages").substring(0, 40));
+      // ✅ Fix: messages not in timeline items — show summary note from content instead
+      const preview = esc((s.content?.summary_note || s.content?.chief_complaint || s.title || "AI Triage Assessment").substring(0, 60));
 
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="view-patient" data-patient-id="${s.patientId}" tabindex="0" role="button">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
             <span style="font-size:12px;color:var(--text);font-weight:500">${esc(s.patientName)}</span>
-            <span style="font-size:10px;color:var(--text-faint);font-family:var(--mono)">${esc(s.session_id)}</span>
+            <span style="font-size:10px;color:var(--text-faint);font-family:var(--mono)">${esc(s.id)}</span>
           </div>
-          <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}… · ${msgCount} msgs · ${formatDate(s.created_at)}</div>
+          <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview} · ${formatDate(s.created_at)}</div>
         </div>
         ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
       </div>`;
@@ -869,42 +871,58 @@ const App = (() => {
         return;
       }
 
-      el.innerHTML = data.map((s) => {
-        const score = s.summary?.priority_score;
-        const pc = priorityClass(score);
-        const summaryFields = s.summary ? Object.entries(s.summary) : [];
-        const msgCount = s.messages?.length || 0;
+      // Backend returns: { type, id:"chat_2", title, created_at, priority_score, content:{...fields} }
+      // NOT: { session_id, messages, summary } — those fields don't exist on timeline items
+      el.innerHTML = data
+        .filter((s) => s.type === "triage_summary") // only show chat summaries, not file records
+        .map((s) => {
+          // ✅ score lives at s.priority_score (top-level) AND inside s.content.priority_score
+          const score = s.priority_score || s.content?.priority_score;
+          const pc = priorityClass(score);
 
-        return `<div class="summary-list-card">
-        <div class="summary-list-header">
-          <span class="summary-list-session">${esc(s.session_id)}</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="cv-msg-count">${msgCount} msgs</span>
-            ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : '<span class="priority low">No score</span>'}
+          // ✅ summary fields are in s.content, not s.summary
+          const summaryFields = s.content ? Object.entries(s.content) : [];
+
+          // ✅ id is "chat_2" — this is what we pass to openChatViewer & prescribe
+          const chatId = s.id; // e.g. "chat_2"
+
+          // ✅ Show key summary fields: chief complaint, symptoms, summary note
+          const keyFields = ["chief_complaint", "symptoms", "severity", "summary_note"];
+          const displayFields = summaryFields.filter(([k]) => keyFields.includes(k));
+
+          return `<div class="summary-list-card">
+          <div class="summary-list-header">
+            <span class="summary-list-session">${esc(s.title || chatId)}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : '<span class="priority low">No score</span>'}
+            </div>
           </div>
-        </div>
-        <div class="summary-list-body">
-          ${summaryFields.slice(0, 6).map(([k, v]) => `
-            <div class="summary-list-field">
-              <span class="summary-list-key">${esc(k.replace(/_/g, " "))}</span>
-              <span class="summary-list-val">${esc(String(v).substring(0, 80))}</span>
-            </div>`).join("")}
-        </div>
-        <div style="font-size:11px;color:var(--text-faint);margin-top:8px;font-family:var(--mono)">
-          ${msgCount} messages · ${formatDate(s.created_at)}
-        </div>
-        <div class="summary-list-actions">
-          <button class="btn btn-purple" data-action="prescribe" data-session-id="${esc(s.session_id || s.id)}" data-patient-id="${patientId}" type="button">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-            Prescribe
-          </button>
-          <button class="btn btn-ghost" data-action="view-chat-readonly" data-session-id="${esc(s.session_id || s.id)}" data-patient-id="${patientId}" type="button">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            View Chat
-          </button>
-        </div>
-      </div>`;
-      }).join("");
+          <div class="summary-list-body">
+            ${displayFields.length ? displayFields.map(([k, v]) => `
+              <div class="summary-list-field">
+                <span class="summary-list-key">${esc(k.replace(/_/g, " "))}</span>
+                <span class="summary-list-val">${esc(String(v).substring(0, 120))}</span>
+              </div>`).join("") : summaryFields.slice(0, 5).map(([k, v]) => `
+              <div class="summary-list-field">
+                <span class="summary-list-key">${esc(k.replace(/_/g, " "))}</span>
+                <span class="summary-list-val">${esc(String(v).substring(0, 120))}</span>
+              </div>`).join("")}
+          </div>
+          <div style="font-size:11px;color:var(--text-faint);margin-top:8px;font-family:var(--mono)">
+            ${formatDate(s.created_at)}
+          </div>
+          <div class="summary-list-actions">
+            <button class="btn btn-purple" data-action="prescribe" data-session-id="${esc(chatId)}" data-patient-id="${patientId}" type="button">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+              Prescribe
+            </button>
+            <button class="btn btn-ghost" data-action="view-chat-readonly" data-session-id="${esc(chatId)}" data-patient-id="${patientId}" type="button">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              View Chat
+            </button>
+          </div>
+        </div>`;
+        }).join("");
     } catch (err) {
       el.innerHTML = `<div class="empty-state" style="padding:40px 20px"><div class="empty-state-title">Error loading summaries</div><div class="empty-state-sub">${esc(err.message)}</div></div>`;
     }
