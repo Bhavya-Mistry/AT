@@ -147,6 +147,42 @@ def get_patient_timeline(
     return paginated_timeline
 
 
+@router.get("/patients/{patient_id}/chat/{chat_id}")
+def get_patient_chat_by_id(
+    patient_id: int,
+    chat_id: int,  # This is the ChatHistory DB row id (from "chat_2" -> 2)
+    db: Session = Depends(get_db),
+    current_doctor: schemas.TokenData = Depends(get_current_doctor),
+):
+    """Returns the full message history for a specific chat session by DB row id."""
+    audit_service.log_action(
+        db=db,
+        actor_id=current_doctor.user_id,
+        patient_id=patient_id,
+        action="VIEWED_CHAT_SESSION",
+    )
+
+    session = (
+        db.query(models.ChatHistory)
+        .filter(
+            models.ChatHistory.id == chat_id,
+            models.ChatHistory.patient_id == patient_id,
+        )
+        .first()
+    )
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+
+    return {
+        "session_id": session.session_id,
+        "patient_id": session.patient_id,
+        "messages": session.messages or [],
+        "summary": session.summary,
+        "created_at": session.created_at,
+    }
+
+
 @router.post("/prescribe/")
 def create_prescription(
     request: schemas.PrescriptionRequest,
