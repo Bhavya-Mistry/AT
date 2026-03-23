@@ -1,5 +1,10 @@
 # backend/routers/doctor.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    BackgroundTasks,
+)  # <-- Add BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.attributes import flag_modified
 from typing import List
@@ -10,8 +15,9 @@ import models
 import schemas
 import pdf_generation_service
 import drive_service
+import email_service  # <-- Add this import
 from db import get_db
-from security import get_current_doctor  # <-- VIP BOUNCER
+from security import get_current_doctor
 
 router = APIRouter(
     prefix="/doctor",
@@ -143,7 +149,9 @@ def get_patient_timeline(
 
 @router.post("/prescribe/")
 def create_prescription(
-    request: schemas.PrescriptionRequest, db: Session = Depends(get_db)
+    request: schemas.PrescriptionRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ):
     history_record = (
         db.query(models.ChatHistory)
@@ -204,6 +212,26 @@ def create_prescription(
     history_record.messages = messages
     flag_modified(history_record, "messages")
     db.commit()
+
+    email_subject = "New Prescription Available - MediConnect"
+    email_body = f"""Hello {patient_name},
+
+A new prescription has been issued for you by your doctor. 
+A follow-up check-in has been scheduled for {request.follow_up_days} days from now.
+
+You can view and securely download your prescription by logging into your MediConnect Patient Portal and checking the 'My Files' section.
+
+Best regards,
+MediConnect Care Team
+"""
+    # Send the email in the background so the doctor's screen doesn't freeze waiting for it
+    background_tasks.add_task(
+        email_service.send_email_notification,
+        to_email=patient.email,
+        subject=email_subject,
+        body=email_body,
+    )
+    # ------------------------------------
 
     return {
         "message": "Prescription generated and sent to patient",
