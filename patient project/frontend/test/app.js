@@ -40,8 +40,9 @@ const App = (() => {
     pollTimer: null,
     abortControllers: new Map(),
     patientSummariesCache: {},
+    hasProfilePic: false,
   };
-
+  const avatarCache = new Map();
   // ═══════════════════════════════════════
   // HELPERS
   // ═══════════════════════════════════════
@@ -660,25 +661,23 @@ const App = (() => {
 
   function renderDoctorRecentPatients(patients) {
     const el = $("#recentChats");
-    if (!patients.length) {
-      el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">👥</div><div class="empty-state-title">No patients yet</div><div class="empty-state-sub">Patients will appear once they register</div></div>';
-      return;
-    }
+    if (!patients.length) { /* existing empty state... */ return; }
+
     el.innerHTML = patients.map((p) => {
       const name = p.profile?.full_name || p.email || "Unknown";
       const initial = name[0]?.toUpperCase() || "?";
-      const score = p.maxPriority;
-      const pc = priorityClass(score);
-      const sessions = p.sessionCount || 0;
+      const hasPic = !!p.profile?.profile_pic_drive_id;
+      // ... existing variables ...
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="view-patient" data-patient-id="${p.id}" tabindex="0" role="button">
-        <div class="patient-card-avatar" style="width:32px;height:32px;font-size:13px">${esc(initial)}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;color:var(--text)">${esc(name)}</div>
-          <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${esc(p.email)}${sessions ? ` · ${sessions} sessions` : ""}</div>
+        <div class="patient-card-avatar" style="position:relative;overflow:hidden;width:32px;height:32px;font-size:13px">
+           <span class="avatar-text">${esc(initial)}</span>
+           <img class="avatar-img" data-userid="${p.id}" data-haspic="${hasPic}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />
         </div>
-        ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
+        // ... rest of HTML
       </div>`;
     }).join("");
+
+    loadListAvatars(el);
   }
 
   function renderDoctorRecentActivity(allSummaries) {
@@ -787,7 +786,6 @@ const App = (() => {
       }
     }
   }
-
   function renderPatientsList() {
     const el = $("#patientsList");
     if (!state.patients.length) {
@@ -801,7 +799,10 @@ const App = (() => {
       const blood = p.profile?.blood_group || "—";
 
       return `<div class="patient-card" data-action="view-patient" data-patient-id="${p.id}" tabindex="0" role="listitem">
-        <div class="patient-card-avatar">${esc(initial)}</div>
+        <div class="patient-card-avatar" style="position:relative;overflow:hidden;">
+            <span class="avatar-text">${esc(initial)}</span>
+            <img class="avatar-img" data-userid="${p.id}" data-haspic="${!!p.profile?.profile_pic_drive_id}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+        </div>
         <div class="patient-card-info">
           <div class="patient-card-name">${esc(name)}</div>
           <div class="patient-card-email">${esc(p.email)}</div>
@@ -820,6 +821,8 @@ const App = (() => {
         </div>
       </div>`;
     }).join("");
+
+    loadListAvatars($("#patientsList"));
   }
 
   // ═══════════════════════════════════════
@@ -833,13 +836,14 @@ const App = (() => {
     const patient = state.patients.find((p) => p.id === patientId);
     const name = patient?.profile?.full_name || patient?.email || "Unknown";
     const initial = name[0]?.toUpperCase() || "?";
+    const hasPic = !!patient?.profile?.profile_pic_drive_id;
 
-    // Render header with a named avatar element we can update with the real photo
+    // Render header once with the correct image tags
     $("#patientDetailHeader").innerHTML = `
       <div class="patient-detail-header">
         <div class="profile-avatar" id="patientAvatarEl" style="width:56px;height:56px;font-size:22px;position:relative;overflow:hidden;flex-shrink:0;">
-          <span id="patientAvatarInitial" style="position:relative;z-index:1;">${esc(initial)}</span>
-          <img id="patientAvatarImg" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;z-index:2;" />
+          <span class="avatar-text" id="patientAvatarInitial" style="position:relative;z-index:1;">${esc(initial)}</span>
+          <img class="avatar-img" data-userid="${patientId}" data-haspic="${hasPic}" id="patientAvatarImg" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:2;border-radius:50%;" />
         </div>
         <div class="profile-info">
           <div class="profile-name">${esc(name)}</div>
@@ -851,23 +855,8 @@ const App = (() => {
         </div>
       </div>`;
 
-    // Fetch patient's profile picture — doctor endpoint, authenticated
-    if (patient?.profile?.profile_pic_drive_id) {
-      try {
-        const res = await fetch(
-          `${CONFIG.API_BASE}/users/${patientId}/profile-pic/`,
-          { headers: { "Authorization": `Bearer ${state.token}` } }
-        );
-        if (res.ok) {
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const img = $("#patientAvatarImg");
-          const txt = $("#patientAvatarInitial");
-          if (img) { img.src = url; img.style.display = "block"; }
-          if (txt) txt.style.display = "none";
-        }
-      } catch { /* silently fall back to initials */ }
-    }
+    // Trigger image load for the header
+    loadListAvatars($("#patientDetailHeader"));
 
     // Load summaries and files
     await loadPatientSummaries(patientId);
@@ -1067,22 +1056,15 @@ const App = (() => {
   // DOCTOR: CHAT VIEWER
   // ═══════════════════════════════════════
   async function openChatViewer(rawId, patientId) {
-    // rawId is either:
-    //   - "chat_2"  (from the summaries timeline endpoint, where id = "chat_{db_row_id}")
-    //   - a session UUID (legacy path, kept for safety)
-    // We extract the DB row id and call GET /doctor/patients/:pid/chat/:chat_db_id
-
     const pid = Number(patientId);
     const patient = state.patients.find((p) => p.id === pid);
     const patientName = patient?.profile?.full_name || patient?.email || "Patient";
     const patientInitial = patientName[0]?.toUpperCase() || "P";
 
-    // Extract numeric DB id from "chat_2" -> 2, or use as-is for legacy session UUIDs
     const chatDbId = String(rawId).startsWith("chat_")
       ? String(rawId).replace("chat_", "")
       : rawId;
 
-    // Show modal immediately with loading state
     $("#chatViewerTitle").textContent = `Chat #${chatDbId}`;
     $("#chatViewerSub").textContent = "Loading messages…";
     $("#chatViewerMessages").innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner"></span></div>';
@@ -1109,8 +1091,16 @@ const App = (() => {
           const avatarMap = { patient: patientInitial, system: "⚙", ai: "🤖" };
           const senderLabel = { patient: patientName, system: "System", ai: "AI Assistant" };
           const text = esc(m.text || "").replace(/\n/g, "<br>");
+
+          // Build the avatar with the image tag specifically for patients
+          let avatarInner = `<span class="avatar-text">${avatarMap[sender]}</span>`;
+          if (sender === "patient") {
+            const hasPic = !!patient?.profile?.profile_pic_drive_id;
+            avatarInner += `<img class="avatar-img" data-userid="${pid}" data-haspic="${hasPic}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+          }
+
           html += `<div class="cv-msg ${sender}">
-            <div class="cv-msg-avatar" aria-hidden="true">${avatarMap[sender]}</div>
+            <div class="cv-msg-avatar" aria-hidden="true" style="position:relative;overflow:hidden;">${avatarInner}</div>
             <div>
               <div class="cv-msg-bubble">${text}</div>
               <div class="cv-msg-meta">${esc(senderLabel[sender])}${m.timestamp ? " · " + formatTime(m.timestamp) : ""}</div>
@@ -1130,9 +1120,11 @@ const App = (() => {
           }).join("") + "</div>";
         }
         el.innerHTML = html;
+
+        // Trigger image load for the chat viewer
+        loadListAvatars(el);
       }
 
-      // Stats footer
       const counts = { patient: 0, ai: 0, system: 0 };
       messages.forEach((m) => {
         const s = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
@@ -1283,13 +1275,21 @@ const App = (() => {
     div.className = `msg ${sc}`;
     div.setAttribute("role", "article");
     const text = esc(msg.text || "").replace(/\n/g, "<br>");
-    div.innerHTML = `<div class="msg-avatar" aria-hidden="true">${avatarMap[sc]}</div>
+
+    let avatarInner = `<span class="avatar-text">${avatarMap[sc]}</span>`;
+    if (sc === "patient") {
+      avatarInner += `<img class="avatar-img" data-userid="me" data-haspic="${state.hasProfilePic}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+    }
+
+    div.innerHTML = `<div class="msg-avatar" aria-hidden="true" style="position:relative;overflow:hidden;">${avatarInner}</div>
         <div>
           <div class="msg-bubble">${text}</div>
           ${msg.is_file ? '<div class="msg-file-tag">📎 Attached file</div>' : ""}
           <div class="msg-time">${formatTime(msg.timestamp)}</div>
         </div>`;
+
     el.appendChild(div);
+    if (sc === "patient") loadListAvatars(div);
     if (scroll) el.scrollTop = el.scrollHeight;
   }
 
@@ -1667,53 +1667,77 @@ const App = (() => {
     } catch { toast("Upload error", "error"); }
     finally { setButtonLoading(btn, false); }
   }
+  // ═══════════════════════════════════════
+  // AVATAR LOADER
+  // ═══════════════════════════════════════
+  async function loadListAvatars(container) {
+    const imgs = container.querySelectorAll('.avatar-img[data-haspic="true"]');
+    imgs.forEach(async (img) => {
+      const uid = img.dataset.userid;
+      const textEl = img.previousElementSibling;
 
+      // Use cached URL if available
+      if (avatarCache.has(uid)) {
+        const url = avatarCache.get(uid);
+        if (url) {
+          img.src = url;
+          img.style.display = "block";
+          if (textEl) textEl.style.display = "none";
+        }
+        return;
+      }
+
+      avatarCache.set(uid, null); // Lock to prevent duplicate network calls
+      try {
+        const endpoint = uid === "me" ? `/users/me/profile-pic/` : `/users/${uid}/profile-pic/`;
+        const res = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
+          headers: { "Authorization": `Bearer ${state.token}` }
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          avatarCache.set(uid, url);
+
+          // Apply to ALL pending images globally with this ID to sync instantly
+          document.querySelectorAll(`.avatar-img[data-userid="${uid}"]`).forEach(el => {
+            el.src = url;
+            el.style.display = "block";
+            if (el.previousElementSibling) el.previousElementSibling.style.display = "none";
+          });
+        } else {
+          avatarCache.delete(uid);
+        }
+      } catch (e) {
+        avatarCache.delete(uid);
+      }
+    });
+  }
   // ═══════════════════════════════════════
   // PROFILE
   // ═══════════════════════════════════════
   async function loadProfilePic(hasPic, initial) {
-    // Fetches the current user's own profile pic with auth header.
-    // The endpoint looks up the drive ID from the DB itself — no param needed,
-    // which prevents any cross-user leakage.
+    state.hasProfilePic = hasPic;
     const avatarImg = $("#profileAvatarImg");
     const avatarText = $("#profileAvatarText");
-    const sidebarAv = $("#sidebarAvatar");
+    const sidebarImg = $("#sidebarAvatarImg");
+    const sidebarText = $("#sidebarAvatarText");
+    const removeBtn = $("#removeProfilePicBtn");
+
+    if (removeBtn) removeBtn.style.display = hasPic ? "inline-flex" : "none";
 
     if (!hasPic) {
       if (avatarImg) { avatarImg.style.display = "none"; avatarImg.src = ""; }
       if (avatarText) { avatarText.style.display = "flex"; avatarText.textContent = initial; }
-      if (sidebarAv) sidebarAv.textContent = initial;
+      if (sidebarImg) { sidebarImg.style.display = "none"; sidebarImg.src = ""; }
+      if (sidebarText) { sidebarText.style.display = "flex"; sidebarText.textContent = initial; }
       return;
     }
 
-    try {
-      const res = await fetch(`${CONFIG.API_BASE}/users/me/profile-pic/`, {
-        headers: { "Authorization": `Bearer ${state.token}` }
-      });
+    // Set attributes and let the universal loader handle the rest
+    if (avatarImg) { avatarImg.dataset.userid = "me"; avatarImg.dataset.haspic = "true"; }
+    if (sidebarImg) { sidebarImg.dataset.userid = "me"; sidebarImg.dataset.haspic = "true"; }
 
-      if (!res.ok) throw new Error("No pic");
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-
-      if (avatarImg) {
-        if (avatarImg._blobUrl) URL.revokeObjectURL(avatarImg._blobUrl);
-        avatarImg._blobUrl = url;
-        avatarImg.src = url;
-        avatarImg.style.cssText = "display:block;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;z-index:2;";
-      }
-      if (avatarText) avatarText.style.display = "none";
-
-      if (sidebarAv) {
-        if (sidebarAv._blobUrl) URL.revokeObjectURL(sidebarAv._blobUrl);
-        sidebarAv._blobUrl = url;
-        sidebarAv.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-      }
-    } catch {
-      if (avatarImg) { avatarImg.style.display = "none"; }
-      if (avatarText) { avatarText.style.display = "flex"; avatarText.textContent = initial; }
-      if (sidebarAv) sidebarAv.textContent = initial;
-    }
+    loadListAvatars(document.body);
   }
 
   async function loadProfile() {
@@ -1725,26 +1749,24 @@ const App = (() => {
         const displayName = profile.full_name || state.user?.email || "User";
         const initial = displayName.charAt(0).toUpperCase();
 
-        // Populate form fields
+        state.hasProfilePic = !!profile.profile_pic_drive_id;
+
         $("#profFullName").value = profile.full_name || "";
         $("#profContact").value = profile.contact_no || "";
         $("#profAddress").value = profile.address || "";
         $("#profBlood").value = profile.blood_group || "";
         $("#profStatus").value = profile.current_status || "mild";
 
-        // Update sidebar and profile header names
         if ($("#sidebarEmail")) $("#sidebarEmail").textContent = displayName;
         if ($("#profileName")) $("#profileName").textContent = displayName;
 
-        // Load profile picture via authenticated blob fetch
-        await loadProfilePic(!!profile.profile_pic_drive_id, initial);
+        await loadProfilePic(state.hasProfilePic, initial);
 
       } else if (res.status === 404) {
+        state.hasProfilePic = false;
         const initial = state.user?.email?.[0]?.toUpperCase() || "U";
-        if ($("#profileAvatarText")) { $("#profileAvatarText").style.display = "flex"; $("#profileAvatarText").textContent = initial; }
-        if ($("#profileAvatarImg")) $("#profileAvatarImg").style.display = "none";
-        if ($("#sidebarAvatar")) $("#sidebarAvatar").textContent = initial;
         if ($("#profileName")) $("#profileName").textContent = state.user?.email || "\u2014";
+        await loadProfilePic(false, initial);
       }
     } catch (err) {
       if (err.name !== "AbortError") console.error("[Profile] Failed to load:", err);
@@ -2013,6 +2035,7 @@ const App = (() => {
     }
 
     // --- 🖼️ PROFILE PICTURE UPLOAD ---
+    // --- 🖼️ PROFILE PICTURE UPLOAD & REMOVE ---
     const profilePicUpload = $("#profilePicUpload");
     if (profilePicUpload) {
       profilePicUpload.addEventListener("change", async (e) => {
@@ -2031,10 +2054,13 @@ const App = (() => {
           });
           if (!res.ok) throw new Error("Failed to upload image");
 
-          const data = await res.json();
           toast("Profile picture updated!", "success");
 
-          // Show the new image immediately
+          // Reset cache and tag all 'me' instances
+          avatarCache.delete("me");
+          state.hasProfilePic = true;
+          document.querySelectorAll('.avatar-img[data-userid="me"]').forEach(el => el.dataset.haspic = "true");
+
           const displayName = $("#profileName")?.textContent || state.user?.email || "U";
           const initial = displayName.charAt(0).toUpperCase();
           await loadProfilePic(true, initial);
@@ -2042,6 +2068,41 @@ const App = (() => {
           toast(err.message, "error");
         } finally {
           e.target.value = "";
+        }
+      });
+    }
+
+    const removePicBtn = $("#removeProfilePicBtn");
+    if (removePicBtn) {
+      removePicBtn.addEventListener("click", async () => {
+        const ok = await confirm("Remove Photo", "Are you sure you want to remove your profile picture?");
+        if (!ok) return;
+
+        try {
+          toast("Removing photo...", "info");
+          const res = await fetch(`${CONFIG.API_BASE}/users/me/profile-pic/`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${state.token}` }
+          });
+          if (!res.ok) throw new Error("Failed to remove image");
+
+          toast("Profile picture removed", "success");
+          avatarCache.delete("me");
+          state.hasProfilePic = false;
+
+          const displayName = $("#profileName")?.textContent || state.user?.email || "U";
+          const initial = displayName.charAt(0).toUpperCase();
+          loadProfilePic(false, initial);
+
+          // Force clear all active 'me' DOM elements immediately
+          document.querySelectorAll('.avatar-img[data-userid="me"]').forEach(el => {
+            el.dataset.haspic = "false";
+            el.style.display = "none";
+            el.src = "";
+            if (el.previousElementSibling) el.previousElementSibling.style.display = "";
+          });
+        } catch (err) {
+          toast(err.message, "error");
         }
       });
     }

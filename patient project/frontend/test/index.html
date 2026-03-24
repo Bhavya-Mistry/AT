@@ -180,7 +180,11 @@
             </nav>
             <div class="sidebar-footer">
                 <div class="user-pill" id="logoutPill" role="button" tabindex="0" aria-label="Sign out">
-                    <div class="avatar" id="sidebarAvatar">P</div>
+                    <div class="avatar" id="sidebarAvatar" style="position:relative; overflow:hidden;">
+                        <span id="sidebarAvatarText" class="avatar-text">P</span>
+                        <img id="sidebarAvatarImg" class="avatar-img" src=""
+                            style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; border-radius:50%;" />
+                    </div>
                     <div class="user-info">
                         <div class="user-name" id="sidebarEmail"><a href="/cdn-cgi/l/email-protection"
                                 class="__cf_email__"
@@ -516,15 +520,20 @@
                     </div>
                     <div class="card" style="max-width:640px">
                         <div class="profile-header">
-                            <label for="profilePicUpload" class="profile-avatar" id="profileAvatarContainer"
-                                style="cursor:pointer;position:relative;overflow:hidden"
-                                title="Click to upload profile picture">
-                                <img id="profileAvatarImg" src=""
-                                    style="display:none;width:100%;height:100%;object-fit:cover;" />
-                                <div id="profileAvatarText" aria-hidden="true">P</div>
-                                <input type="file" id="profilePicUpload" accept="image/jpeg,image/png,image/webp"
-                                    style="display:none;">
-                            </label>
+                            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                                <label for="profilePicUpload" class="profile-avatar" id="profileAvatarContainer"
+                                    style="cursor:pointer;position:relative;overflow:hidden"
+                                    title="Click to upload profile picture">
+                                    <img id="profileAvatarImg" class="avatar-img" src=""
+                                        style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:2;border-radius:50%;" />
+                                    <div id="profileAvatarText" class="avatar-text"
+                                        style="position:relative;z-index:1;">P</div>
+                                    <input type="file" id="profilePicUpload" accept="image/jpeg,image/png,image/webp"
+                                        style="display:none;">
+                                </label>
+                                <button type="button" id="removeProfilePicBtn" class="btn btn-ghost"
+                                    style="font-size:11px; padding:4px 10px; display:none;">Remove</button>
+                            </div>
                             <div class="profile-info">
                                 <div class="profile-name" id="profileName">&mdash;</div>
                                 <div class="profile-email" id="profileEmail">&mdash;</div>
