@@ -931,10 +931,6 @@ const App = (() => {
             ${formatDate(s.created_at)}
           </div>
           <div class="summary-list-actions">
-            <button class="btn btn-purple" data-action="prescribe" data-session-id="${esc(chatId)}" data-patient-id="${patientId}" type="button">
-              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-              Prescribe
-            </button>
             <button class="btn btn-ghost" data-action="view-chat-readonly" data-session-id="${esc(chatId)}" data-patient-id="${patientId}" type="button">
               <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               View Chat
@@ -982,14 +978,49 @@ const App = (() => {
   // ═══════════════════════════════════════
   // DOCTOR: PRESCRIPTION
   // ═══════════════════════════════════════
-  function openPrescribeModal(sessionId, patientId) {
-    const patient = state.patients.find((p) => p.id === Number(patientId));
+  async function openPrescribeModal(rawId, patientId) {
+    const pid = Number(patientId);
+    const patient = state.patients.find((p) => p.id === pid);
     const name = patient?.profile?.full_name || patient?.email || "Patient";
-    $("#prescribeModalSub").textContent = `Prescribing for ${name} — Session: ${sessionId}`;
-    $("#rxSessionId").value = sessionId;
-    $("#rxDoctorNotes").value = "";
-    $("#rxFollowUp").value = "7";
-    $("#prescribeModal").classList.add("open");
+
+    // rawId is "chat_4" (DB row id from the timeline endpoint) when called from
+    // the summary card Prescribe button. The backend needs the actual session_id UUID.
+    // When called from the chat viewer, rawId is already the real UUID.
+    let realSessionId = rawId;
+
+    if (String(rawId).startsWith("chat_")) {
+      const chatDbId = String(rawId).replace("chat_", "");
+
+      // Show modal immediately with a loading state so user knows something is happening
+      $("#prescribeModalSub").textContent = `Prescribing for ${name} — resolving session…`;
+      $("#rxSessionId").value = "";
+      $("#rxDoctorNotes").value = "";
+      $("#rxFollowUp").value = "7";
+      $("#rxSubmitBtn").disabled = true;
+      $("#prescribeModal").classList.add("open");
+
+      try {
+        const session = await apiJSON(`/doctor/patients/${pid}/chat/${chatDbId}`);
+        if (!session?.session_id) throw new Error("No session_id in response");
+        realSessionId = session.session_id;
+      } catch (err) {
+        toast("Could not load session. Try using View Chat → Prescribe instead.", "error");
+        closePrescribeModal();
+        return;
+      }
+
+      $("#rxSubmitBtn").disabled = false;
+    } else {
+      // Already have the real UUID — open normally
+      $("#prescribeModalSub").textContent = `Prescribing for ${name}`;
+      $("#rxSessionId").value = realSessionId;
+      $("#rxDoctorNotes").value = "";
+      $("#rxFollowUp").value = "7";
+      $("#prescribeModal").classList.add("open");
+    }
+
+    $("#prescribeModalSub").textContent = `Prescribing for ${name}`;
+    $("#rxSessionId").value = realSessionId;
     setTimeout(() => $("#rxDoctorNotes").focus(), 150);
   }
 
@@ -1808,6 +1839,7 @@ const App = (() => {
         break;
       case "prescribe-from-viewer":
         closeChatViewer();
+        // From the viewer, dataset.sessionId is already the real UUID (set by openChatViewer)
         openPrescribeModal(target.dataset.sessionId, target.dataset.patientId);
         break;
       // ✅ Fix: cancel-apt was added to the render HTML but never handled here
