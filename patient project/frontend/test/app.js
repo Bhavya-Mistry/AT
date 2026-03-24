@@ -661,25 +661,39 @@ const App = (() => {
 
   function renderDoctorRecentPatients(patients) {
     const el = $("#recentChats");
-    if (!patients.length) { /* existing empty state... */ return; }
+    if (!patients.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">👥</div><div class="empty-state-title">No patients</div><div class="empty-state-sub">Patients will appear here once they register</div></div>';
+      return;
+    }
 
     el.innerHTML = patients.map((p) => {
       const name = p.profile?.full_name || p.email || "Unknown";
       const initial = name[0]?.toUpperCase() || "?";
       const hasPic = !!p.profile?.profile_pic_drive_id;
-      // ... existing variables ...
+
+      // Variables from your original code
+      const score = p.maxPriority;
+      const pc = priorityClass(score);
+      const sessions = p.sessionCount || 0;
+
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="view-patient" data-patient-id="${p.id}" tabindex="0" role="button">
         <div class="patient-card-avatar" style="position:relative;overflow:hidden;width:32px;height:32px;font-size:13px">
            <span class="avatar-text">${esc(initial)}</span>
            <img class="avatar-img" data-userid="${p.id}" data-haspic="${hasPic}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />
         </div>
-        // ... rest of HTML
+        
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text)">${esc(name)}</div>
+          <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${esc(p.email)}${sessions ? ` · ${sessions} sessions` : ""}</div>
+        </div>
+        
+        ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
       </div>`;
     }).join("");
 
+    // Trigger image loading for this list
     loadListAvatars(el);
   }
-
   function renderDoctorRecentActivity(allSummaries) {
     const el = $("#recentFiles");
 
