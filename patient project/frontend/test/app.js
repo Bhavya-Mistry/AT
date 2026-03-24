@@ -40,8 +40,9 @@ const App = (() => {
     pollTimer: null,
     abortControllers: new Map(),
     patientSummariesCache: {},
+    hasProfilePic: false,
   };
-
+  const avatarCache = new Map();
   // ═══════════════════════════════════════
   // HELPERS
   // ═══════════════════════════════════════
@@ -608,21 +609,23 @@ const App = (() => {
 
       allSummaries.forEach((sessions, idx) => {
         const patient = state.patients[idx];
-        totalSessions += sessions.length;
+        // Only count triage_summary type items (not file records)
+        const triageSessions = sessions.filter((s) => s.type === "triage_summary");
+        totalSessions += triageSessions.length;
 
         let patientMaxPriority = 0;
 
-        sessions.forEach((s) => {
-          if (s.summary) {
-            const score = s.summary.priority_score;
-            if (score) {
-              totalPriority += score;
-              priorityCount++;
-              if (score > patientMaxPriority) patientMaxPriority = score;
-            }
-            if (!s.summary.reviewed) {
-              pendingCount++;
-            }
+        triageSessions.forEach((s) => {
+          // ✅ Fix: backend returns priority_score at top level and inside content
+          const score = s.priority_score || s.content?.priority_score;
+          if (score) {
+            totalPriority += score;
+            priorityCount++;
+            if (score > patientMaxPriority) patientMaxPriority = score;
+          }
+          // Count as pending if no reviewed flag in content
+          if (!s.content?.reviewed) {
+            pendingCount++;
           }
         });
 
@@ -630,7 +633,7 @@ const App = (() => {
           highPriorityPatients.push({
             ...patient,
             maxPriority: patientMaxPriority,
-            sessionCount: sessions.length,
+            sessionCount: triageSessions.length,
           });
         }
       });
@@ -658,25 +661,23 @@ const App = (() => {
 
   function renderDoctorRecentPatients(patients) {
     const el = $("#recentChats");
-    if (!patients.length) {
-      el.innerHTML = '<div class="empty-state" style="padding:30px 20px"><div class="empty-state-icon" aria-hidden="true">👥</div><div class="empty-state-title">No patients yet</div><div class="empty-state-sub">Patients will appear once they register</div></div>';
-      return;
-    }
+    if (!patients.length) { /* existing empty state... */ return; }
+
     el.innerHTML = patients.map((p) => {
       const name = p.profile?.full_name || p.email || "Unknown";
       const initial = name[0]?.toUpperCase() || "?";
-      const score = p.maxPriority;
-      const pc = priorityClass(score);
-      const sessions = p.sessionCount || 0;
+      const hasPic = !!p.profile?.profile_pic_drive_id;
+      // ... existing variables ...
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="view-patient" data-patient-id="${p.id}" tabindex="0" role="button">
-        <div class="patient-card-avatar" style="width:32px;height:32px;font-size:13px">${esc(initial)}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;color:var(--text)">${esc(name)}</div>
-          <div style="font-size:11px;color:var(--text-dim);font-family:var(--mono)">${esc(p.email)}${sessions ? ` · ${sessions} sessions` : ""}</div>
+        <div class="patient-card-avatar" style="position:relative;overflow:hidden;width:32px;height:32px;font-size:13px">
+           <span class="avatar-text">${esc(initial)}</span>
+           <img class="avatar-img" data-userid="${p.id}" data-haspic="${hasPic}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />
         </div>
-        ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
+        // ... rest of HTML
       </div>`;
     }).join("");
+
+    loadListAvatars(el);
   }
 
   function renderDoctorRecentActivity(allSummaries) {
@@ -710,19 +711,19 @@ const App = (() => {
     }
 
     el.innerHTML = recent.map((s) => {
-      const score = s.summary?.priority_score;
+      // ✅ Fix: score is at s.priority_score (top-level), not s.summary.priority_score
+      const score = s.priority_score || s.content?.priority_score;
       const pc = priorityClass(score);
-      const msgCount = s.messages?.length || 0;
-      const lastMsg = s.messages?.slice().reverse().find((m) => m.sender !== "system");
-      const preview = esc((lastMsg?.text || "No messages").substring(0, 40));
+      // ✅ Fix: messages not in timeline items — show summary note from content instead
+      const preview = esc((s.content?.summary_note || s.content?.chief_complaint || s.title || "AI Triage Assessment").substring(0, 60));
 
       return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-action="view-patient" data-patient-id="${s.patientId}" tabindex="0" role="button">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
             <span style="font-size:12px;color:var(--text);font-weight:500">${esc(s.patientName)}</span>
-            <span style="font-size:10px;color:var(--text-faint);font-family:var(--mono)">${esc(s.session_id)}</span>
+            <span style="font-size:10px;color:var(--text-faint);font-family:var(--mono)">${esc(s.id)}</span>
           </div>
-          <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview}… · ${msgCount} msgs · ${formatDate(s.created_at)}</div>
+          <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${preview} · ${formatDate(s.created_at)}</div>
         </div>
         ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : ""}
       </div>`;
@@ -785,7 +786,6 @@ const App = (() => {
       }
     }
   }
-
   function renderPatientsList() {
     const el = $("#patientsList");
     if (!state.patients.length) {
@@ -799,7 +799,10 @@ const App = (() => {
       const blood = p.profile?.blood_group || "—";
 
       return `<div class="patient-card" data-action="view-patient" data-patient-id="${p.id}" tabindex="0" role="listitem">
-        <div class="patient-card-avatar">${esc(initial)}</div>
+        <div class="patient-card-avatar" style="position:relative;overflow:hidden;">
+            <span class="avatar-text">${esc(initial)}</span>
+            <img class="avatar-img" data-userid="${p.id}" data-haspic="${!!p.profile?.profile_pic_drive_id}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />
+        </div>
         <div class="patient-card-info">
           <div class="patient-card-name">${esc(name)}</div>
           <div class="patient-card-email">${esc(p.email)}</div>
@@ -818,6 +821,8 @@ const App = (() => {
         </div>
       </div>`;
     }).join("");
+
+    loadListAvatars($("#patientsList"));
   }
 
   // ═══════════════════════════════════════
@@ -831,11 +836,15 @@ const App = (() => {
     const patient = state.patients.find((p) => p.id === patientId);
     const name = patient?.profile?.full_name || patient?.email || "Unknown";
     const initial = name[0]?.toUpperCase() || "?";
+    const hasPic = !!patient?.profile?.profile_pic_drive_id;
 
-    // Render header
+    // Render header once with the correct image tags
     $("#patientDetailHeader").innerHTML = `
       <div class="patient-detail-header">
-        <div class="profile-avatar" style="width:56px;height:56px;font-size:22px">${esc(initial)}</div>
+        <div class="profile-avatar" id="patientAvatarEl" style="width:56px;height:56px;font-size:22px;position:relative;overflow:hidden;flex-shrink:0;">
+          <span class="avatar-text" id="patientAvatarInitial" style="position:relative;z-index:1;">${esc(initial)}</span>
+          <img class="avatar-img" data-userid="${patientId}" data-haspic="${hasPic}" id="patientAvatarImg" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:2;border-radius:50%;" />
+        </div>
         <div class="profile-info">
           <div class="profile-name">${esc(name)}</div>
           <div class="profile-email">${esc(patient?.email || "")}</div>
@@ -846,11 +855,12 @@ const App = (() => {
         </div>
       </div>`;
 
-    // Load summaries
+    // Trigger image load for the header
+    loadListAvatars($("#patientDetailHeader"));
+
+    // Load summaries and files
     await loadPatientSummaries(patientId);
     await loadPatientFiles(patientId);
-
-    // Show summaries tab by default
     activateDetailTab("summaries");
   }
 
@@ -869,42 +879,54 @@ const App = (() => {
         return;
       }
 
-      el.innerHTML = data.map((s) => {
-        const score = s.summary?.priority_score;
-        const pc = priorityClass(score);
-        const summaryFields = s.summary ? Object.entries(s.summary) : [];
-        const msgCount = s.messages?.length || 0;
+      // Backend returns: { type, id:"chat_2", title, created_at, priority_score, content:{...fields} }
+      // NOT: { session_id, messages, summary } — those fields don't exist on timeline items
+      el.innerHTML = data
+        .filter((s) => s.type === "triage_summary") // only show chat summaries, not file records
+        .map((s) => {
+          // ✅ score lives at s.priority_score (top-level) AND inside s.content.priority_score
+          const score = s.priority_score || s.content?.priority_score;
+          const pc = priorityClass(score);
 
-        return `<div class="summary-list-card">
-        <div class="summary-list-header">
-          <span class="summary-list-session">${esc(s.session_id)}</span>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="cv-msg-count">${msgCount} msgs</span>
-            ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : '<span class="priority low">No score</span>'}
+          // ✅ summary fields are in s.content, not s.summary
+          const summaryFields = s.content ? Object.entries(s.content) : [];
+
+          // ✅ id is "chat_2" — this is what we pass to openChatViewer & prescribe
+          const chatId = s.id; // e.g. "chat_2"
+
+          // ✅ Show key summary fields: chief complaint, symptoms, summary note
+          const keyFields = ["chief_complaint", "symptoms", "severity", "summary_note"];
+          const displayFields = summaryFields.filter(([k]) => keyFields.includes(k));
+
+          return `<div class="summary-list-card">
+          <div class="summary-list-header">
+            <span class="summary-list-session">${esc(s.title || chatId)}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              ${score ? `<span class="priority ${pc}">${esc(String(score))}/10</span>` : '<span class="priority low">No score</span>'}
+            </div>
           </div>
-        </div>
-        <div class="summary-list-body">
-          ${summaryFields.slice(0, 6).map(([k, v]) => `
-            <div class="summary-list-field">
-              <span class="summary-list-key">${esc(k.replace(/_/g, " "))}</span>
-              <span class="summary-list-val">${esc(String(v).substring(0, 80))}</span>
-            </div>`).join("")}
-        </div>
-        <div style="font-size:11px;color:var(--text-faint);margin-top:8px;font-family:var(--mono)">
-          ${msgCount} messages · ${formatDate(s.created_at)}
-        </div>
-        <div class="summary-list-actions">
-          <button class="btn btn-purple" data-action="prescribe" data-session-id="${esc(s.session_id || s.id)}" data-patient-id="${patientId}" type="button">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-            Prescribe
-          </button>
-          <button class="btn btn-ghost" data-action="view-chat-readonly" data-session-id="${esc(s.session_id || s.id)}" data-patient-id="${patientId}" type="button">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            View Chat
-          </button>
-        </div>
-      </div>`;
-      }).join("");
+          <div class="summary-list-body">
+            ${displayFields.length ? displayFields.map(([k, v]) => `
+              <div class="summary-list-field">
+                <span class="summary-list-key">${esc(k.replace(/_/g, " "))}</span>
+                <span class="summary-list-val">${esc(String(v).substring(0, 120))}</span>
+              </div>`).join("") : summaryFields.slice(0, 5).map(([k, v]) => `
+              <div class="summary-list-field">
+                <span class="summary-list-key">${esc(k.replace(/_/g, " "))}</span>
+                <span class="summary-list-val">${esc(String(v).substring(0, 120))}</span>
+              </div>`).join("")}
+          </div>
+          <div style="font-size:11px;color:var(--text-faint);margin-top:8px;font-family:var(--mono)">
+            ${formatDate(s.created_at)}
+          </div>
+          <div class="summary-list-actions">
+            <button class="btn btn-ghost" data-action="view-chat-readonly" data-session-id="${esc(chatId)}" data-patient-id="${patientId}" type="button">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              View Chat
+            </button>
+          </div>
+        </div>`;
+        }).join("");
     } catch (err) {
       el.innerHTML = `<div class="empty-state" style="padding:40px 20px"><div class="empty-state-title">Error loading summaries</div><div class="empty-state-sub">${esc(err.message)}</div></div>`;
     }
@@ -945,14 +967,49 @@ const App = (() => {
   // ═══════════════════════════════════════
   // DOCTOR: PRESCRIPTION
   // ═══════════════════════════════════════
-  function openPrescribeModal(sessionId, patientId) {
-    const patient = state.patients.find((p) => p.id === Number(patientId));
+  async function openPrescribeModal(rawId, patientId) {
+    const pid = Number(patientId);
+    const patient = state.patients.find((p) => p.id === pid);
     const name = patient?.profile?.full_name || patient?.email || "Patient";
-    $("#prescribeModalSub").textContent = `Prescribing for ${name} — Session: ${sessionId}`;
-    $("#rxSessionId").value = sessionId;
-    $("#rxDoctorNotes").value = "";
-    $("#rxFollowUp").value = "7";
-    $("#prescribeModal").classList.add("open");
+
+    // rawId is "chat_4" (DB row id from the timeline endpoint) when called from
+    // the summary card Prescribe button. The backend needs the actual session_id UUID.
+    // When called from the chat viewer, rawId is already the real UUID.
+    let realSessionId = rawId;
+
+    if (String(rawId).startsWith("chat_")) {
+      const chatDbId = String(rawId).replace("chat_", "");
+
+      // Show modal immediately with a loading state so user knows something is happening
+      $("#prescribeModalSub").textContent = `Prescribing for ${name} — resolving session…`;
+      $("#rxSessionId").value = "";
+      $("#rxDoctorNotes").value = "";
+      $("#rxFollowUp").value = "7";
+      $("#rxSubmitBtn").disabled = true;
+      $("#prescribeModal").classList.add("open");
+
+      try {
+        const session = await apiJSON(`/doctor/patients/${pid}/chat/${chatDbId}`);
+        if (!session?.session_id) throw new Error("No session_id in response");
+        realSessionId = session.session_id;
+      } catch (err) {
+        toast("Could not load session. Try using View Chat → Prescribe instead.", "error");
+        closePrescribeModal();
+        return;
+      }
+
+      $("#rxSubmitBtn").disabled = false;
+    } else {
+      // Already have the real UUID — open normally
+      $("#prescribeModalSub").textContent = `Prescribing for ${name}`;
+      $("#rxSessionId").value = realSessionId;
+      $("#rxDoctorNotes").value = "";
+      $("#rxFollowUp").value = "7";
+      $("#prescribeModal").classList.add("open");
+    }
+
+    $("#prescribeModalSub").textContent = `Prescribing for ${name}`;
+    $("#rxSessionId").value = realSessionId;
     setTimeout(() => $("#rxDoctorNotes").focus(), 150);
   }
 
@@ -999,22 +1056,15 @@ const App = (() => {
   // DOCTOR: CHAT VIEWER
   // ═══════════════════════════════════════
   async function openChatViewer(rawId, patientId) {
-    // rawId is either:
-    //   - "chat_2"  (from the summaries timeline endpoint, where id = "chat_{db_row_id}")
-    //   - a session UUID (legacy path, kept for safety)
-    // We extract the DB row id and call GET /doctor/patients/:pid/chat/:chat_db_id
-
     const pid = Number(patientId);
     const patient = state.patients.find((p) => p.id === pid);
     const patientName = patient?.profile?.full_name || patient?.email || "Patient";
     const patientInitial = patientName[0]?.toUpperCase() || "P";
 
-    // Extract numeric DB id from "chat_2" -> 2, or use as-is for legacy session UUIDs
     const chatDbId = String(rawId).startsWith("chat_")
       ? String(rawId).replace("chat_", "")
       : rawId;
 
-    // Show modal immediately with loading state
     $("#chatViewerTitle").textContent = `Chat #${chatDbId}`;
     $("#chatViewerSub").textContent = "Loading messages…";
     $("#chatViewerMessages").innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner"></span></div>';
@@ -1041,8 +1091,16 @@ const App = (() => {
           const avatarMap = { patient: patientInitial, system: "⚙", ai: "🤖" };
           const senderLabel = { patient: patientName, system: "System", ai: "AI Assistant" };
           const text = esc(m.text || "").replace(/\n/g, "<br>");
+
+          // Build the avatar with the image tag specifically for patients
+          let avatarInner = `<span class="avatar-text">${avatarMap[sender]}</span>`;
+          if (sender === "patient") {
+            const hasPic = !!patient?.profile?.profile_pic_drive_id;
+            avatarInner += `<img class="avatar-img" data-userid="${pid}" data-haspic="${hasPic}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+          }
+
           html += `<div class="cv-msg ${sender}">
-            <div class="cv-msg-avatar" aria-hidden="true">${avatarMap[sender]}</div>
+            <div class="cv-msg-avatar" aria-hidden="true" style="position:relative;overflow:hidden;">${avatarInner}</div>
             <div>
               <div class="cv-msg-bubble">${text}</div>
               <div class="cv-msg-meta">${esc(senderLabel[sender])}${m.timestamp ? " · " + formatTime(m.timestamp) : ""}</div>
@@ -1062,9 +1120,11 @@ const App = (() => {
           }).join("") + "</div>";
         }
         el.innerHTML = html;
+
+        // Trigger image load for the chat viewer
+        loadListAvatars(el);
       }
 
-      // Stats footer
       const counts = { patient: 0, ai: 0, system: 0 };
       messages.forEach((m) => {
         const s = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
@@ -1215,13 +1275,21 @@ const App = (() => {
     div.className = `msg ${sc}`;
     div.setAttribute("role", "article");
     const text = esc(msg.text || "").replace(/\n/g, "<br>");
-    div.innerHTML = `<div class="msg-avatar" aria-hidden="true">${avatarMap[sc]}</div>
+
+    let avatarInner = `<span class="avatar-text">${avatarMap[sc]}</span>`;
+    if (sc === "patient") {
+      avatarInner += `<img class="avatar-img" data-userid="me" data-haspic="${state.hasProfilePic}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
+    }
+
+    div.innerHTML = `<div class="msg-avatar" aria-hidden="true" style="position:relative;overflow:hidden;">${avatarInner}</div>
         <div>
           <div class="msg-bubble">${text}</div>
           ${msg.is_file ? '<div class="msg-file-tag">📎 Attached file</div>' : ""}
           <div class="msg-time">${formatTime(msg.timestamp)}</div>
         </div>`;
+
     el.appendChild(div);
+    if (sc === "patient") loadListAvatars(div);
     if (scroll) el.scrollTop = el.scrollHeight;
   }
 
@@ -1599,23 +1667,80 @@ const App = (() => {
     } catch { toast("Upload error", "error"); }
     finally { setButtonLoading(btn, false); }
   }
+  // ═══════════════════════════════════════
+  // AVATAR LOADER
+  // ═══════════════════════════════════════
+  async function loadListAvatars(container) {
+    const imgs = container.querySelectorAll('.avatar-img[data-haspic="true"]');
+    imgs.forEach(async (img) => {
+      const uid = img.dataset.userid;
+      const textEl = img.previousElementSibling;
 
+      // Use cached URL if available
+      if (avatarCache.has(uid)) {
+        const url = avatarCache.get(uid);
+        if (url) {
+          img.src = url;
+          img.style.display = "block";
+          if (textEl) textEl.style.display = "none";
+        }
+        return;
+      }
+
+      avatarCache.set(uid, null); // Lock to prevent duplicate network calls
+      try {
+        const endpoint = uid === "me" ? `/users/me/profile-pic/` : `/users/${uid}/profile-pic/`;
+        const res = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
+          headers: { "Authorization": `Bearer ${state.token}` }
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          avatarCache.set(uid, url);
+
+          // Apply to ALL pending images globally with this ID to sync instantly
+          document.querySelectorAll(`.avatar-img[data-userid="${uid}"]`).forEach(el => {
+            el.src = url;
+            el.style.display = "block";
+            if (el.previousElementSibling) el.previousElementSibling.style.display = "none";
+          });
+        } else {
+          avatarCache.delete(uid);
+        }
+      } catch (e) {
+        avatarCache.delete(uid);
+      }
+    });
+  }
   // ═══════════════════════════════════════
   // PROFILE
   // ═══════════════════════════════════════
-  function clearProfileForm() {
-    $("#profFullName").value = "";
-    $("#profContact").value = "";
-    $("#profAddress").value = "";
-    $("#profBlood").value = "";
-    $("#profStatus").value = "stable";
-    $("#profileName").textContent = "\u2014";
+  async function loadProfilePic(hasPic, initial) {
+    state.hasProfilePic = hasPic;
+    const avatarImg = $("#profileAvatarImg");
+    const avatarText = $("#profileAvatarText");
+    const sidebarImg = $("#sidebarAvatarImg");
+    const sidebarText = $("#sidebarAvatarText");
+    const removeBtn = $("#removeProfilePicBtn");
+
+    if (removeBtn) removeBtn.style.display = hasPic ? "inline-flex" : "none";
+
+    if (!hasPic) {
+      if (avatarImg) { avatarImg.style.display = "none"; avatarImg.src = ""; }
+      if (avatarText) { avatarText.style.display = "flex"; avatarText.textContent = initial; }
+      if (sidebarImg) { sidebarImg.style.display = "none"; sidebarImg.src = ""; }
+      if (sidebarText) { sidebarText.style.display = "flex"; sidebarText.textContent = initial; }
+      return;
+    }
+
+    // Set attributes and let the universal loader handle the rest
+    if (avatarImg) { avatarImg.dataset.userid = "me"; avatarImg.dataset.haspic = "true"; }
+    if (sidebarImg) { sidebarImg.dataset.userid = "me"; sidebarImg.dataset.haspic = "true"; }
+
+    loadListAvatars(document.body);
   }
 
   async function loadProfile() {
-    // Always clear first to prevent stale data from showing
-    clearProfileForm();
-
     try {
       const res = await api("/users/me/profile/", { _abortKey: "load-profile" });
 
@@ -1624,56 +1749,27 @@ const App = (() => {
         const displayName = profile.full_name || state.user?.email || "User";
         const initial = displayName.charAt(0).toUpperCase();
 
-        // Populate form fields
+        state.hasProfilePic = !!profile.profile_pic_drive_id;
+
         $("#profFullName").value = profile.full_name || "";
         $("#profContact").value = profile.contact_no || "";
         $("#profAddress").value = profile.address || "";
         $("#profBlood").value = profile.blood_group || "";
-        $("#profStatus").value = profile.current_status || "stable";
+        $("#profStatus").value = profile.current_status || "mild";
 
-        // Update sidebar and profile names
         if ($("#sidebarEmail")) $("#sidebarEmail").textContent = displayName;
         if ($("#profileName")) $("#profileName").textContent = displayName;
 
-        // Handle Profile Picture vs Initial Letter
-        const avatarImg = $("#profileAvatarImg");
-        const avatarText = $("#profileAvatarText");
-
-        if (profile.profile_pic_drive_id) {
-          // User HAS a picture: Show Image, Hide Text
-          const imgUrl = `${CONFIG.API_BASE}/media/view/${profile.profile_pic_drive_id}`;
-
-          if (avatarImg) {
-            avatarImg.src = imgUrl;
-            avatarImg.style.display = "block";
-          }
-          if (avatarText) avatarText.style.display = "none";
-
-          // Update the tiny sidebar avatar!
-          if ($("#sidebarAvatar")) {
-            $("#sidebarAvatar").innerHTML = `<img src="${imgUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
-          }
-        } else {
-          // NO picture: Show Text, Hide Image
-          if (avatarImg) avatarImg.style.display = "none";
-          if (avatarText) {
-            avatarText.style.display = "block";
-            avatarText.textContent = initial;
-          }
-          if ($("#sidebarAvatar")) $("#sidebarAvatar").innerHTML = initial;
-        }
+        await loadProfilePic(state.hasProfilePic, initial);
 
       } else if (res.status === 404) {
-        // No profile yet — form already cleared above
-        console.log("[Profile] No existing profile found");
+        state.hasProfilePic = false;
         const initial = state.user?.email?.[0]?.toUpperCase() || "U";
-        if ($("#profileAvatarText")) $("#profileAvatarText").textContent = initial;
-        if ($("#sidebarAvatar")) $("#sidebarAvatar").innerHTML = initial;
+        if ($("#profileName")) $("#profileName").textContent = state.user?.email || "\u2014";
+        await loadProfilePic(false, initial);
       }
     } catch (err) {
-      if (err.name !== "AbortError") {
-        console.error("[Profile] Failed to load:", err);
-      }
+      if (err.name !== "AbortError") console.error("[Profile] Failed to load:", err);
     }
   }
 
@@ -1687,8 +1783,8 @@ const App = (() => {
       current_status: $("#profStatus").value,
     };
 
-    if (!body.full_name || !body.contact_no) {
-      toast("Name and contact required", "error");
+    if (!body.full_name) {
+      toast("Full name is required", "error");
       return;
     }
 
@@ -1699,7 +1795,10 @@ const App = (() => {
       const res = await api("/users/me/profile/", { method: "POST", body: JSON.stringify(body) });
       if (res.ok) {
         toast("Profile saved!", "success");
-        // Reload the profile to cleanly update names/avatars without breaking images
+        // Update sidebar name immediately without wiping the form
+        if ($("#sidebarEmail")) $("#sidebarEmail").textContent = body.full_name;
+        if ($("#profileName")) $("#profileName").textContent = body.full_name;
+        // Reload to sync any server-side changes (but form is already populated so no flash)
         loadProfile();
       } else {
         const d = await res.json();
@@ -1762,6 +1861,7 @@ const App = (() => {
         break;
       case "prescribe-from-viewer":
         closeChatViewer();
+        // From the viewer, dataset.sessionId is already the real UUID (set by openChatViewer)
         openPrescribeModal(target.dataset.sessionId, target.dataset.patientId);
         break;
       // ✅ Fix: cancel-apt was added to the render HTML but never handled here
@@ -1935,6 +2035,7 @@ const App = (() => {
     }
 
     // --- 🖼️ PROFILE PICTURE UPLOAD ---
+    // --- 🖼️ PROFILE PICTURE UPLOAD & REMOVE ---
     const profilePicUpload = $("#profilePicUpload");
     if (profilePicUpload) {
       profilePicUpload.addEventListener("change", async (e) => {
@@ -1953,12 +2054,55 @@ const App = (() => {
           });
           if (!res.ok) throw new Error("Failed to upload image");
 
-          toast("Profile picture updated successfully!", "success");
-          loadProfile(); // Reload the profile to fetch the new image
+          toast("Profile picture updated!", "success");
+
+          // Reset cache and tag all 'me' instances
+          avatarCache.delete("me");
+          state.hasProfilePic = true;
+          document.querySelectorAll('.avatar-img[data-userid="me"]').forEach(el => el.dataset.haspic = "true");
+
+          const displayName = $("#profileName")?.textContent || state.user?.email || "U";
+          const initial = displayName.charAt(0).toUpperCase();
+          await loadProfilePic(true, initial);
         } catch (err) {
           toast(err.message, "error");
         } finally {
-          e.target.value = ""; // Reset input
+          e.target.value = "";
+        }
+      });
+    }
+
+    const removePicBtn = $("#removeProfilePicBtn");
+    if (removePicBtn) {
+      removePicBtn.addEventListener("click", async () => {
+        const ok = await confirm("Remove Photo", "Are you sure you want to remove your profile picture?");
+        if (!ok) return;
+
+        try {
+          toast("Removing photo...", "info");
+          const res = await fetch(`${CONFIG.API_BASE}/users/me/profile-pic/`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${state.token}` }
+          });
+          if (!res.ok) throw new Error("Failed to remove image");
+
+          toast("Profile picture removed", "success");
+          avatarCache.delete("me");
+          state.hasProfilePic = false;
+
+          const displayName = $("#profileName")?.textContent || state.user?.email || "U";
+          const initial = displayName.charAt(0).toUpperCase();
+          loadProfilePic(false, initial);
+
+          // Force clear all active 'me' DOM elements immediately
+          document.querySelectorAll('.avatar-img[data-userid="me"]').forEach(el => {
+            el.dataset.haspic = "false";
+            el.style.display = "none";
+            el.src = "";
+            if (el.previousElementSibling) el.previousElementSibling.style.display = "";
+          });
+        } catch (err) {
+          toast(err.message, "error");
         }
       });
     }
@@ -1997,43 +2141,62 @@ const App = (() => {
     const bookBtn = $("#bookAppointmentBtn");
     if (bookBtn) {
       bookBtn.addEventListener("click", async () => {
-        // ✅ Fix: backend AppointmentCreate schema needs doctor_id, session_id, scheduled_time
-        // Old code sent appointment_date + reason which the backend doesn't accept
-
-        // Get available sessions so user can pick one
+        // Fetch doctors and sessions in parallel
+        let doctorOptions = '<option value="">Loading doctors…</option>';
         let sessionOptions = '<option value="">Select a chat session</option>';
-        try {
-          const sessions = await apiJSON("/users/me/chats/");
-          if (sessions.length) {
-            sessionOptions = '<option value="">Select a session</option>' +
-              sessions.map(s => `<option value="${esc(s.session_id)}">Session ${s.session_id.slice(0, 16)}… (${formatDate(s.created_at)})</option>`).join('');
-          }
-        } catch (e) { /* leave default */ }
 
-        // Build a simple inline modal using the confirm modal as a base
+        try {
+          const [doctors, sessions] = await Promise.allSettled([
+            apiJSON("/users/doctors/"),       // new lightweight endpoint
+            apiJSON("/users/me/chats/"),
+          ]);
+
+          // Build doctor dropdown — show name (email fallback), store id as value
+          if (doctors.status === "fulfilled" && doctors.value.length) {
+            doctorOptions = '<option value="">Select your doctor</option>' +
+              doctors.value.map(d => {
+                const name = d.profile?.full_name || d.email;
+                return `<option value="${d.id}">${esc(name)}</option>`;
+              }).join('');
+          } else {
+            doctorOptions = '<option value="">No doctors found</option>';
+          }
+
+          // Build session dropdown — use first patient message as label
+          if (sessions.status === "fulfilled" && sessions.value.length) {
+            sessionOptions = '<option value="">Select a session</option>' +
+              sessions.value.map(s => {
+                const firstMsg = s.messages?.find(m => m.sender === "patient");
+                const label = firstMsg
+                  ? getSessionDisplayName(firstMsg.text)
+                  : `Session ${formatDate(s.created_at)}`;
+                return `<option value="${esc(s.session_id)}">${esc(label)}</option>`;
+              }).join('');
+          }
+        } catch (e) { /* leave defaults */ }
+
         $("#confirmTitle").textContent = "Book Appointment";
         $("#confirmBody").innerHTML = `
-            <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
-              <div>
-                <label class="form-label" for="bookDoctorId">Doctor ID</label>
-                <input type="number" class="form-input" id="bookDoctorId" placeholder="Enter doctor's user ID" min="1" />
-              </div>
-              <div>
-                <label class="form-label" for="bookSessionSel">Chat Session</label>
-                <select class="form-select" id="bookSessionSel">${sessionOptions}</select>
-              </div>
-              <div>
-                <label class="form-label" for="bookDateTime">Date &amp; Time</label>
-                <input type="datetime-local" class="form-input" id="bookDateTime"
-                  min="${new Date().toISOString().slice(0, 16)}" />
-              </div>
-            </div>`;
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
+            <div>
+              <label class="form-label" for="bookDoctorSel">Doctor</label>
+              <select class="form-select" id="bookDoctorSel">${doctorOptions}</select>
+            </div>
+            <div>
+              <label class="form-label" for="bookSessionSel">Chat Session</label>
+              <select class="form-select" id="bookSessionSel">${sessionOptions}</select>
+            </div>
+            <div>
+              <label class="form-label" for="bookDateTime">Date &amp; Time</label>
+              <input type="datetime-local" class="form-input" id="bookDateTime"
+                min="${new Date().toISOString().slice(0, 16)}" />
+            </div>
+          </div>`;
         $("#confirmOkBtn").textContent = "Book";
         $("#confirmOkBtn").className = "btn btn-primary";
         $("#confirmModal").classList.add("open");
         $("#confirmOkBtn").focus();
 
-        // Override confirm resolver to do the booking
         state.confirmResolver = async (ok) => {
           state.confirmResolver = null;
           $("#confirmModal").classList.remove("open");
@@ -2041,7 +2204,7 @@ const App = (() => {
           $("#confirmOkBtn").className = "btn btn-danger";
           if (!ok) return;
 
-          const doctorId = parseInt($("#bookDoctorId")?.value);
+          const doctorId = parseInt($("#bookDoctorSel")?.value);
           const sessionId = $("#bookSessionSel")?.value;
           const dt = $("#bookDateTime")?.value;
 

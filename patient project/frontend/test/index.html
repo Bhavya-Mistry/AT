@@ -22,6 +22,7 @@
 
     <a class="skip-link" href="#main-content">Skip to main content</a>
 
+    <!-- ===== AUTH ===== -->
     <div class="auth-wrap" id="authWrap" role="dialog" aria-label="Authentication">
         <div class="auth-card">
             <div class="auth-logo">
@@ -33,17 +34,13 @@
                 </div>
                 <div class="auth-logo-text">Medi<span>Connect</span></div>
             </div>
-
             <div id="loginForm">
                 <h1 class="auth-heading">Welcome back</h1>
                 <p class="auth-sub">Sign in to your portal</p>
                 <div class="auth-error" id="loginError" role="alert"></div>
 
-                <div id="googleSignInContainer" style="display: flex; justify-content: center; margin-bottom: 20px;">
-                </div>
-
-                <div style="text-align: center; color: var(--text-dim); margin-bottom: 20px; font-size: 14px;">— OR —
-                </div>
+                <div id="googleSignInContainer" style="display:flex;justify-content:center;margin-bottom:20px;"></div>
+                <div class="auth-divider">— OR —</div>
 
                 <form id="loginFormEl" autocomplete="on" novalidate>
                     <div class="form-group">
@@ -67,12 +64,10 @@
                     Don't have an account? <a href="#" id="showRegister">Create one</a>
                 </div>
             </div>
-
             <div id="registerForm" style="display:none">
                 <h1 class="auth-heading">Create account</h1>
                 <p class="auth-sub">Join MediConnect patient portal</p>
                 <div class="auth-error" id="registerError" role="alert"></div>
-
                 <form id="registerFormEl" autocomplete="on" novalidate>
                     <div class="form-group">
                         <label class="form-label" for="regEmail">Email address</label>
@@ -106,6 +101,7 @@
         </div>
     </div>
 
+    <!-- ===== APP ===== -->
     <div class="app" id="mainApp" style="display:none">
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
         <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
@@ -121,6 +117,7 @@
                 </div>
             </div>
             <nav class="sidebar-nav">
+                <!-- Shared -->
                 <div class="nav-section-label">Portal</div>
                 <button class="nav-item" aria-current="page" data-screen="dashboard" type="button">
                     <svg viewBox="0 0 24 24">
@@ -132,6 +129,7 @@
                     Overview
                 </button>
 
+                <!-- Patient Only -->
                 <button class="nav-item role-patient" data-screen="chat" type="button">
                     <svg viewBox="0 0 24 24">
                         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
@@ -146,8 +144,9 @@
                     </svg>
                     Medical Files
                 </button>
-                <button class="nav-item role-patient" data-screen="appointments" type="button">
-                    <svg viewBox="0 0 24 24">
+                <!-- Shared: Appointments (both patient and doctor) -->
+                <button class="nav-item" data-screen="appointments" type="button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                         <line x1="16" y1="2" x2="16" y2="6" />
                         <line x1="8" y1="2" x2="8" y2="6" />
@@ -156,6 +155,7 @@
                     Appointments
                 </button>
 
+                <!-- Doctor Only -->
                 <div class="nav-section-label role-doctor" style="display:none">Doctor Panel</div>
                 <button class="nav-item role-doctor" data-screen="patients" type="button" style="display:none">
                     <svg viewBox="0 0 24 24">
@@ -168,6 +168,7 @@
                     <span class="badge" id="patientsBadge" style="display:none">0</span>
                 </button>
 
+                <!-- Shared -->
                 <div class="nav-section-label" style="margin-top:8px">Account</div>
                 <button class="nav-item" data-screen="profile" type="button">
                     <svg viewBox="0 0 24 24">
@@ -179,9 +180,15 @@
             </nav>
             <div class="sidebar-footer">
                 <div class="user-pill" id="logoutPill" role="button" tabindex="0" aria-label="Sign out">
-                    <div class="avatar" id="sidebarAvatar">P</div>
+                    <div class="avatar" id="sidebarAvatar" style="position:relative; overflow:hidden;">
+                        <span id="sidebarAvatarText" class="avatar-text">P</span>
+                        <img id="sidebarAvatarImg" class="avatar-img" src=""
+                            style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; border-radius:50%;" />
+                    </div>
                     <div class="user-info">
-                        <div class="user-name" id="sidebarEmail">user@example.com</div>
+                        <div class="user-name" id="sidebarEmail"><a href="/cdn-cgi/l/email-protection"
+                                class="__cf_email__"
+                                data-cfemail="2d585e485f6d48554c405d4148034e4240">[email&#160;protected]</a></div>
                         <div class="user-role" id="sidebarRole">Patient · Sign out</div>
                     </div>
                 </div>
@@ -221,7 +228,11 @@
 
             <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
 
+                <!-- ===== DASHBOARD ===== -->
+                <!-- DASHBOARD -->
                 <div class="content screen active" id="screen-dashboard">
+
+                    <!-- Patient Stats -->
                     <div class="stats-row role-patient" role="list" aria-label="Patient statistics">
                         <div class="stat-card" role="listitem" style="--accent-bar:var(--accent)">
                             <div class="stat-label">Total Sessions</div>
@@ -245,6 +256,7 @@
                         </div>
                     </div>
 
+                    <!-- Doctor Stats -->
                     <div class="stats-row role-doctor" role="list" aria-label="Doctor statistics" style="display:none">
                         <div class="stat-card" role="listitem" style="--accent-bar:var(--purple)">
                             <div class="stat-label">Total Patients</div>
@@ -300,6 +312,7 @@
                     </div>
                 </div>
 
+                <!-- ===== CHAT (Patient) ===== -->
                 <div class="screen" id="screen-chat" style="display:none;flex:1;overflow:hidden;flex-direction:column">
                     <div class="chat-layout">
                         <div class="chat-sessions" id="chatSessionsPanel">
@@ -323,7 +336,7 @@
                                     <div class="chat-session-name" id="currentSessionName">Select a session</div>
                                     <div class="chat-session-meta" id="currentSessionMeta">No session active</div>
                                 </div>
-                                <button class="btn btn-ghost" style="font-size:12px; margin-right: 8px;"
+                                <button class="btn btn-ghost" style="font-size:12px; margin-right:8px;"
                                     id="recordVoiceBtn" type="button" title="Hold to dictate">
                                     🎙️ Dictate
                                 </button>
@@ -358,8 +371,7 @@
                                                     d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
                                             </svg>
                                         </label>
-                                        <input type="file" id="chatFileInput" accept="image/*,.pdf"
-                                            style="display:none;">
+                                        <input type="file" id="chatFileInput" accept="image/*,.pdf">
                                         <button class="icon-btn send" title="Send message" data-action="send-chat"
                                             type="button" id="sendBtn" aria-label="Send message">
                                             <svg viewBox="0 0 24 24">
@@ -384,6 +396,7 @@
                     </div>
                 </div>
 
+                <!-- ===== FILES (Patient) ===== -->
                 <div class="content screen" id="screen-files" style="display:none">
                     <div class="section-header">
                         <div>
@@ -398,13 +411,7 @@
                                 </svg>
                                 <span class="btn-label">Analyze (OCR)</span>
                             </label>
-                            <input type="file" id="ocrInput" accept="image/*,.pdf" style="display:none;">
-
-                            <label class="btn btn-ghost" for="transcribeInput" tabindex="0" role="button">
-                                🎙️ <span class="btn-label">Transcribe</span>
-                            </label>
-                            <input type="file" id="transcribeInput" accept="audio/*" style="display:none;">
-
+                            <input type="file" id="ocrInput" accept="image/*,.pdf">
                             <label class="btn btn-primary" for="genericUploadInput" tabindex="0" role="button">
                                 <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none">
                                     <line x1="12" y1="5" x2="12" y2="19" />
@@ -412,7 +419,11 @@
                                 </svg>
                                 <span class="btn-label">Upload File</span>
                             </label>
-                            <input type="file" id="genericUploadInput" style="display:none;">
+                            <input type="file" id="genericUploadInput">
+                            <label class="btn btn-ghost role-patient" for="transcribeInput" tabindex="0" role="button">
+                                🎙️ <span class="btn-label">Transcribe Audio</span>
+                            </label>
+                            <input type="file" id="transcribeInput" accept="audio/*">
                         </div>
                     </div>
                     <div id="processingBanner" class="processing-indicator" role="status" aria-live="polite">
@@ -428,29 +439,7 @@
                     </div>
                 </div>
 
-                <div class="content screen" id="screen-appointments" style="display:none">
-                    <div class="section-header">
-                        <div>
-                            <h2 class="section-title">Appointments</h2>
-                            <p class="section-sub">Manage your upcoming check-ups and visits</p>
-                        </div>
-                        <div>
-                            <button class="btn btn-primary role-patient" id="bookAppointmentBtn" type="button">
-                                + Book Appointment
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div id="appointmentsList">
-                            <div class="empty-state" style="padding:60px 20px">
-                                <div class="empty-state-icon" aria-hidden="true">📅</div>
-                                <div class="empty-state-title">No appointments</div>
-                                <div class="empty-state-sub">You have no upcoming appointments scheduled.</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                <!-- ===== PATIENTS (Doctor) ===== -->
                 <div class="content screen" id="screen-patients" style="display:none">
                     <div class="section-header">
                         <div>
@@ -477,6 +466,7 @@
                     </div>
                 </div>
 
+                <!-- ===== PATIENT DETAIL (Doctor) ===== -->
                 <div class="content screen" id="screen-patient-detail" style="display:none">
                     <button class="btn btn-ghost" data-action="back-to-patients" type="button"
                         style="margin-bottom:20px">
@@ -495,6 +485,32 @@
                     <div id="patientDetailFiles" class="detail-panel" style="display:none"></div>
                 </div>
 
+                <!-- ===== APPOINTMENTS (Patient + Doctor) ===== -->
+                <div class="content screen" id="screen-appointments" style="display:none">
+                    <div class="section-header">
+                        <div>
+                            <h2 class="section-title">Appointments</h2>
+                            <p class="section-sub" id="appointmentsSubtitle">Manage your upcoming check-ups and visits
+                            </p>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary role-patient" id="bookAppointmentBtn" type="button">
+                                + Book Appointment
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div id="appointmentsList">
+                            <div class="empty-state" style="padding:60px 20px">
+                                <div class="empty-state-icon" aria-hidden="true">📅</div>
+                                <div class="empty-state-title">No appointments</div>
+                                <div class="empty-state-sub">You have no upcoming appointments scheduled.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== PROFILE ===== -->
                 <div class="content screen" id="screen-profile" style="display:none">
                     <div class="section-header">
                         <div>
@@ -503,26 +519,27 @@
                         </div>
                     </div>
                     <div class="card" style="max-width:640px">
-
                         <div class="profile-header">
-                            <label for="profilePicUpload" class="profile-avatar" id="profileAvatarContainer"
-                                style="cursor: pointer; position: relative; overflow: hidden;"
-                                title="Click to upload profile picture">
-                                <img id="profileAvatarImg" src=""
-                                    style="display:none; width: 100%; height: 100%; object-fit: cover;" />
-                                <div id="profileAvatarText" aria-hidden="true">P</div>
-                                <input type="file" id="profilePicUpload" accept="image/jpeg, image/png, image/webp"
-                                    style="display: none;">
-                            </label>
+                            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+                                <label for="profilePicUpload" class="profile-avatar" id="profileAvatarContainer"
+                                    style="cursor:pointer;position:relative;overflow:hidden"
+                                    title="Click to upload profile picture">
+                                    <img id="profileAvatarImg" class="avatar-img" src=""
+                                        style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:2;border-radius:50%;" />
+                                    <div id="profileAvatarText" class="avatar-text"
+                                        style="position:relative;z-index:1;">P</div>
+                                    <input type="file" id="profilePicUpload" accept="image/jpeg,image/png,image/webp"
+                                        style="display:none;">
+                                </label>
+                                <button type="button" id="removeProfilePicBtn" class="btn btn-ghost"
+                                    style="font-size:11px; padding:4px 10px; display:none;">Remove</button>
+                            </div>
                             <div class="profile-info">
                                 <div class="profile-name" id="profileName">&mdash;</div>
                                 <div class="profile-email" id="profileEmail">&mdash;</div>
                                 <div class="profile-badge" id="profileBadge">Patient</div>
-                                <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">Click the avatar
-                                    to upload a photo</div>
                             </div>
                         </div>
-
                         <div class="divider"></div>
                         <form id="profileFormEl" novalidate>
                             <div class="form-row">
@@ -577,6 +594,7 @@
         </div>
     </div>
 
+    <!-- Upload Modal -->
     <div class="modal-overlay" id="uploadModal" role="dialog" aria-modal="true" aria-label="Upload medical file">
         <div class="modal">
             <div class="modal-title">Upload Medical File</div>
@@ -587,7 +605,7 @@
                 <div class="upload-zone-label">Click or drag to upload</div>
                 <div class="upload-zone-sub">JPEG · PNG · PDF · WebP — Max 25 MB</div>
             </label>
-            <input type="file" id="modalFileInput" accept="image/*,.pdf,.webp" style="display:none;">
+            <input type="file" id="modalFileInput" accept="image/*,.pdf,.webp">
             <div id="uploadFileName" style="font-size:13px;color:var(--accent);margin-top:-8px;display:none"
                 aria-live="polite"></div>
             <div class="modal-footer">
@@ -598,6 +616,7 @@
         </div>
     </div>
 
+    <!-- Confirm Modal -->
     <div class="modal-overlay" id="confirmModal" role="alertdialog" aria-modal="true" aria-label="Confirmation">
         <div class="modal" style="max-width:400px">
             <div class="modal-title" id="confirmTitle">Confirm</div>
@@ -609,6 +628,7 @@
         </div>
     </div>
 
+    <!-- Prescription Modal (Doctor) -->
     <div class="modal-overlay" id="prescribeModal" role="dialog" aria-modal="true" aria-label="Create prescription">
         <div class="modal" style="max-width:540px">
             <div class="modal-title">📋 Create Prescription</div>
@@ -644,7 +664,9 @@
 
     <div id="toast-container" role="status" aria-live="polite" aria-label="Notifications"></div>
 
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
     <script src="app.js"></script>
+    <!-- Chat Viewer Modal (Doctor) -->
     <div class="modal-overlay" id="chatViewerModal" role="dialog" aria-modal="true" aria-label="Chat history viewer">
         <div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;padding:0">
             <div style="padding:24px 28px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
@@ -674,11 +696,11 @@
                         </svg>
                         Prescribe
                     </button>
-                    <button class="btn btn-ghost" data-action="close-chat-viewer" type="button">Close</button>
                 </div>
             </div>
         </div>
     </div>
+
 </body>
 
 </html>
