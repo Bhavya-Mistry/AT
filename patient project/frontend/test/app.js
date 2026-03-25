@@ -633,28 +633,37 @@ const App = (() => {
 
       // 2. SORT APPOINTMENTS BY DATE/TIME
       // Smart Sort: Upcoming first (ascending), Completed last (descending)
+      // Smart Sort: Active Upcoming (Top) -> Past (Middle) -> Cancelled (Bottom)
       const now = Date.now();
       appts.sort((a, b) => {
         const timeA = new Date(a.scheduled_time || a.appointment_date).getTime();
         const timeB = new Date(b.scheduled_time || b.appointment_date).getTime();
 
-        const isPastA = timeA < now;
-        const isPastB = timeB < now;
+        const statusA = String(a.status?.value || a.status || 'scheduled').toLowerCase();
+        const statusB = String(b.status?.value || b.status || 'scheduled').toLowerCase();
 
-        // 1. If one is past and the other is upcoming, push the past one to the bottom
-        if (isPastA !== isPastB) {
-          return isPastA ? 1 : -1;
+        // Helper to assign a sorting rank
+        const getRank = (time, status) => {
+          if (status === 'cancelled') return 3; // Cancelled goes to the very bottom
+          if (time < now) return 2;             // Past/Completed goes to the middle
+          return 1;                             // Active/Upcoming stays at the top
+        };
+
+        const rankA = getRank(timeA, statusA);
+        const rankB = getRank(timeB, statusB);
+
+        // 1. Sort by Rank first
+        if (rankA !== rankB) {
+          return rankA - rankB;
         }
 
-        // 2. If BOTH are upcoming, show the closest date first (Ascending)
-        if (!isPastA) {
-          return timeA - timeB;
+        // 2. If they have the exact same rank, sort by time
+        if (rankA === 1) {
+          return timeA - timeB; // Upcoming: Closest date first (Ascending)
+        } else {
+          return timeB - timeA; // Past/Cancelled: Most recent first (Descending)
         }
-
-        // 3. If BOTH are past/completed, show the most recent first (Descending)
-        return timeB - timeA;
       });
-
       // Cache for later use
       state.patients.forEach((p, i) => {
         state.patientSummariesCache[p.id] = allSummaries[i];
@@ -698,19 +707,30 @@ const App = (() => {
       });
 
       // 3. CALCULATE TODAY'S APPOINTMENTS (FIXED)
-      const todayStr = new Date().toDateString();
-      console.log("[DocDash] Checking Today:", todayStr); // debug
+      // 3. CALCULATE TODAY'S APPOINTMENTS (FIXED)
+      const currentDate = new Date(); // Use a new name here
+      const todayYear = currentDate.getFullYear();
+      const todayMonth = currentDate.getMonth();
+      const todayDate = currentDate.getDate();
 
       const todayCount = appts.filter(a => {
         const dt = a.scheduled_time || a.appointment_date;
         if (!dt) return false;
-        const statusVal = a.status?.value || a.status || 'scheduled';
 
-        const apptDateStr = new Date(dt).toDateString();
-        // Only count if it matches today's date and hasn't been cancelled
-        const isToday = apptDateStr === todayStr && statusVal === "scheduled";
+        const d = new Date(dt);
+        // Skip if the database sent an invalid date string
+        if (isNaN(d.getTime())) return false;
 
-        return isToday;
+        // Explicitly compare Year, Month, and Day integers 
+        const isSameDay = d.getFullYear() === todayYear &&
+          d.getMonth() === todayMonth &&
+          d.getDate() === todayDate;
+
+        // Force lowercase to catch 'Scheduled', 'SCHEDULED', etc.
+        const statusVal = String(a.status?.value || a.status || 'scheduled').toLowerCase();
+
+        // Count it if it's today AND it hasn't been cancelled
+        return isSameDay && statusVal !== "cancelled";
       }).length;
 
       // Update doctor stat cards
@@ -1528,21 +1548,30 @@ const App = (() => {
         const timeA = new Date(a.scheduled_time || a.appointment_date).getTime();
         const timeB = new Date(b.scheduled_time || b.appointment_date).getTime();
 
-        const isPastA = timeA < now;
-        const isPastB = timeB < now;
+        const statusA = String(a.status?.value || a.status || 'scheduled').toLowerCase();
+        const statusB = String(b.status?.value || b.status || 'scheduled').toLowerCase();
 
-        // 1. If one is past and the other is upcoming, push the past one to the bottom
-        if (isPastA !== isPastB) {
-          return isPastA ? 1 : -1;
+        // Helper to assign a sorting rank
+        const getRank = (time, status) => {
+          if (status === 'cancelled') return 3; // Cancelled goes to the very bottom
+          if (time < now) return 2;             // Past/Completed goes to the middle
+          return 1;                             // Active/Upcoming stays at the top
+        };
+
+        const rankA = getRank(timeA, statusA);
+        const rankB = getRank(timeB, statusB);
+
+        // 1. Sort by Rank first
+        if (rankA !== rankB) {
+          return rankA - rankB;
         }
 
-        // 2. If BOTH are upcoming, show the closest date first (Ascending)
-        if (!isPastA) {
-          return timeA - timeB;
+        // 2. If they have the exact same rank, sort by time
+        if (rankA === 1) {
+          return timeA - timeB; // Upcoming: Closest date first (Ascending)
+        } else {
+          return timeB - timeA; // Past/Cancelled: Most recent first (Descending)
         }
-
-        // 3. If BOTH are past/completed, show the most recent first (Descending)
-        return timeB - timeA;
       });
 
       container.innerHTML = appts.map(apt => {
