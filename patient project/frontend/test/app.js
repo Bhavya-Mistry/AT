@@ -656,7 +656,16 @@ const App = (() => {
           });
         }
       });
-
+      // --- CALCULATE TODAY'S APPOINTMENTS ---
+      const todayStr = new Date().toDateString();
+      const todayCount = appts.filter(a => {
+        const dt = a.scheduled_time || a.appointment_date;
+        if (!dt) return false;
+        const statusVal = a.status?.value || a.status || 'scheduled';
+        // Only count if it matches today's date and hasn't been cancelled
+        return new Date(dt).toDateString() === todayStr && statusVal === "scheduled";
+      }).length;
+      // --------------------------------------
       // Update doctor stat cards
       $("#statDocSessions").textContent = totalSessions || "\u2014";
       $("#statDocPending").textContent = pendingCount || "\u2014";
