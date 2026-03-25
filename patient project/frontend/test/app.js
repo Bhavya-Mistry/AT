@@ -47,6 +47,17 @@ const App = (() => {
   // HELPERS
   // ═══════════════════════════════════════
 
+  function formatAppointmentDateTime(dtStr) {
+    if (!dtStr) return "";
+    const dt = new Date(dtStr);
+    const day = dt.toLocaleDateString("en-IN", { weekday: 'short' });
+    const date = dt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+    const time = dt.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    return `${day}, ${date} at ${time}`;
+  }
+
+
+
   function formatMessageText(str) {
     if (!str) return "";
 
@@ -88,6 +99,7 @@ const App = (() => {
       });
     } catch { return ""; }
   }
+
 
   function formatTime(d) {
     try {
@@ -608,11 +620,40 @@ const App = (() => {
         badge.style.display = "";
       }
 
-      // Fetch summaries for all patients in parallel
+      // 1. FETCH SUMMARIES AND APPOINTMENTS IN PARALLEL
       const summaryPromises = state.patients.map((p) =>
         apiJSON(`/doctor/patients/${p.id}/summaries`).catch(() => [])
       );
-      const allSummaries = await Promise.all(summaryPromises);
+      const apptPromise = apiJSON("/appointments/doctor").catch(() => []);
+
+      const [allSummaries, appts] = await Promise.all([
+        Promise.all(summaryPromises),
+        apptPromise
+      ]);
+
+      // 2. SORT APPOINTMENTS BY DATE/TIME
+      // Smart Sort: Upcoming first (ascending), Completed last (descending)
+      const now = Date.now();
+      appts.sort((a, b) => {
+        const timeA = new Date(a.scheduled_time || a.appointment_date).getTime();
+        const timeB = new Date(b.scheduled_time || b.appointment_date).getTime();
+
+        const isPastA = timeA < now;
+        const isPastB = timeB < now;
+
+        // 1. If one is past and the other is upcoming, push the past one to the bottom
+        if (isPastA !== isPastB) {
+          return isPastA ? 1 : -1;
+        }
+
+        // 2. If BOTH are upcoming, show the closest date first (Ascending)
+        if (!isPastA) {
+          return timeA - timeB;
+        }
+
+        // 3. If BOTH are past/completed, show the most recent first (Descending)
+        return timeB - timeA;
+      });
 
       // Cache for later use
       state.patients.forEach((p, i) => {
@@ -635,7 +676,6 @@ const App = (() => {
         let patientMaxPriority = 0;
 
         triageSessions.forEach((s) => {
-          // ✅ Fix: backend returns priority_score at top level and inside content
           const score = s.priority_score || s.content?.priority_score;
           if (score) {
             totalPriority += score;
@@ -656,19 +696,27 @@ const App = (() => {
           });
         }
       });
-      // --- CALCULATE TODAY'S APPOINTMENTS ---
+
+      // 3. CALCULATE TODAY'S APPOINTMENTS (FIXED)
       const todayStr = new Date().toDateString();
+      console.log("[DocDash] Checking Today:", todayStr); // debug
+
       const todayCount = appts.filter(a => {
         const dt = a.scheduled_time || a.appointment_date;
         if (!dt) return false;
         const statusVal = a.status?.value || a.status || 'scheduled';
+
+        const apptDateStr = new Date(dt).toDateString();
         // Only count if it matches today's date and hasn't been cancelled
-        return new Date(dt).toDateString() === todayStr && statusVal === "scheduled";
+        const isToday = apptDateStr === todayStr && statusVal === "scheduled";
+
+        return isToday;
       }).length;
-      // --------------------------------------
+
       // Update doctor stat cards
       $("#statDocSessions").textContent = totalSessions || "\u2014";
-      $("#statDocPending").textContent = pendingCount || "\u2014";
+      $("#statDocPending").textContent = pendingCount || "0";
+      $("#statDocAppointments").textContent = todayCount || "0";
       $("#statDocPriority").textContent = priorityCount
         ? (totalPriority / priorityCount).toFixed(1)
         : "\u2014";
@@ -1457,13 +1505,10 @@ const App = (() => {
   // ═══════════════════════════════════════
   // APPOINTMENTS DATA
   // ═══════════════════════════════════════
-  // ═══════════════════════════════════════
-  // APPOINTMENTS DATA
-  // ═══════════════════════════════════════
   async function loadAppointments() {
     try {
       const endpoint = state.user.role === 'doctor' ? '/appointments/doctor' : '/appointments/me';
-      const appts = await apiJSON(endpoint); // <-- Fixed apiJSON
+      const appts = await apiJSON(endpoint);
       const container = $("#appointmentsList");
 
       if (!appts || appts.length === 0) {
@@ -1476,31 +1521,73 @@ const App = (() => {
         return;
       }
 
+      // Sort appointments by date
+      // Smart Sort: Upcoming first (ascending), Completed last (descending)
+      const now = Date.now();
+      appts.sort((a, b) => {
+        const timeA = new Date(a.scheduled_time || a.appointment_date).getTime();
+        const timeB = new Date(b.scheduled_time || b.appointment_date).getTime();
+
+        const isPastA = timeA < now;
+        const isPastB = timeB < now;
+
+        // 1. If one is past and the other is upcoming, push the past one to the bottom
+        if (isPastA !== isPastB) {
+          return isPastA ? 1 : -1;
+        }
+
+        // 2. If BOTH are upcoming, show the closest date first (Ascending)
+        if (!isPastA) {
+          return timeA - timeB;
+        }
+
+        // 3. If BOTH are past/completed, show the most recent first (Descending)
+        return timeB - timeA;
+      });
+
       container.innerHTML = appts.map(apt => {
-        // ✅ Fix: backend field is scheduled_time, not appointment_date
         const dt = apt.scheduled_time || apt.appointment_date;
-        const dateStr = dt ? new Date(dt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+        const formattedDateTime = formatAppointmentDateTime(dt); // Uses new formatter
+
         const statusVal = apt.status?.value || apt.status || 'scheduled';
-        const statusClass = statusVal === 'scheduled' ? 'upcoming' : statusVal;
+
+        // Auto-mark as completed if past date
+        let finalStatus = statusVal;
+        let statusClass = "upcoming";
+
+        if (dt && new Date(dt) < new Date() && statusVal === 'scheduled') {
+          finalStatus = 'completed';
+          statusClass = 'completed';
+        } else if (statusVal === 'cancelled') {
+          statusClass = 'cancelled';
+        }
+
+        const title = state.user.role === 'doctor'
+          ? `Patient ID: ${apt.patient_id}`
+          : `Appointment #${apt.id}`;
+
+        const meetingLink = apt.meeting_link
+          ? `<a href="${esc(apt.meeting_link)}" target="_blank" style="color:var(--accent)">Join Google Meet</a>`
+          : 'No meeting link yet';
+
         return `
           <div class="appointment-card">
             <div class="appointment-details">
-              <div class="apt-date">${dateStr}</div>
-              <div class="apt-title">${state.user.role === 'doctor' ? 'Patient ID: ' + apt.patient_id : 'Appointment #' + apt.id}</div>
-              <div class="apt-sub">${apt.meeting_link ? `<a href="${esc(apt.meeting_link)}" target="_blank" style="color:var(--accent)">Join Google Meet</a>` : 'No meeting link yet'}</div>
+              <div class="apt-date-time">${formattedDateTime}</div>
+              <div class="apt-title">${title}</div>
+              <div class="apt-sub">${meetingLink}</div>
             </div>
-            <div class="apt-actions">
-              <span class="apt-status ${esc(statusClass)}">${esc(statusVal)}</span>
-              ${statusVal === 'scheduled' ? `<button class="btn btn-ghost" data-action="cancel-apt" data-apt-id="${apt.id}" style="color:var(--red); font-size:12px;">Cancel</button>` : ''}
+            <div class="apt-right-area">
+              <span class="apt-status ${esc(statusClass)}">${esc(finalStatus)}</span>
+              ${finalStatus === 'scheduled' ? `<button class="btn btn-ghost" data-action="cancel-apt" data-apt-id="${apt.id}" style="color:var(--red); font-size:12px; margin-top:8px;">Cancel</button>` : ''}
             </div>
           </div>`;
       }).join('');
     } catch (e) {
       console.error(e);
-      toast("Failed to load appointments", "error"); // <-- Fixed toast
+      toast("Failed to load appointments", "error");
     }
   }
-
   // ═══════════════════════════════════════
   // FILES (Patient)
   // ═══════════════════════════════════════
