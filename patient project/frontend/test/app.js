@@ -10,7 +10,7 @@ const App = (() => {
       if (meta) return meta.content;
       const h = location.hostname;
       return h === "localhost" || h === "127.0.0.1"
-        ? "http://127.0.0.1:8000"
+        ? "http://127.0.0.1:8080"
         : `${location.origin}/api`;
     })(),
     TOKEN_KEY: "mc_token",
