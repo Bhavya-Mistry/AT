@@ -1991,47 +1991,52 @@ const App = (() => {
       });
     });
     // --- 🎙️ VOICE TO TEXT (CHAT) ---
-    let mediaRecorder;
+    // --- 🎙️ VOICE TO TEXT (CHAT) ---
+    let mediaRecorder = null;
     let audioChunks = [];
+    let audioStream = null;
     const recordBtn = $("#recordVoiceBtn");
 
     if (recordBtn) {
-      // Start Recording on Mouse Down
-      recordBtn.addEventListener("mousedown", async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          mediaRecorder = new MediaRecorder(stream);
-          audioChunks = [];
-
-          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-          mediaRecorder.start();
-
-          recordBtn.classList.add("is-recording");
-          recordBtn.innerHTML = "🛑 Recording...";
-        } catch (e) {
-          toast("Microphone access denied. Please allow permissions.", "error");
-        }
-      });
-
-      // Stop Recording on Mouse Up and Send to API
-      recordBtn.addEventListener("mouseup", () => {
+      recordBtn.addEventListener("click", async () => {
+        // IF ALREADY RECORDING -> STOP
         if (mediaRecorder && mediaRecorder.state === "recording") {
           mediaRecorder.stop();
           recordBtn.classList.remove("is-recording");
           recordBtn.innerHTML = "🎙️ Dictate";
+          return;
+        }
+
+        // IF NOT RECORDING -> START
+        try {
+          audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(audioStream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
 
           mediaRecorder.onstop = async () => {
+            // 1. Release the microphone hardware immediately!
+            if (audioStream) {
+              audioStream.getTracks().forEach(track => track.stop());
+            }
+
+            // 2. Prepare the audio payload
             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
             const formData = new FormData();
             formData.append("file", audioBlob, "voice_memo.webm");
 
+            // 3. Send to server
             try {
               toast("Transcribing voice...", "info");
+              recordBtn.disabled = true; // prevent spam clicking while processing
+
               const res = await fetch(`${CONFIG.API_BASE}/chat/voice-to-text`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${state.token}` },
                 body: formData
               });
+
               if (!res.ok) throw new Error("Transcription failed");
               const data = await res.json();
 
@@ -2039,11 +2044,22 @@ const App = (() => {
                 const input = $("#chatInput");
                 input.value = input.value ? input.value + " " + data.text : data.text;
                 toast("Voice transcribed!", "success");
+                // Auto-resize the input box if the text is long
+                autoResize(input);
               }
             } catch (e) {
               toast(e.message, "error");
+            } finally {
+              recordBtn.disabled = false;
             }
           };
+
+          mediaRecorder.start();
+          recordBtn.classList.add("is-recording");
+          recordBtn.innerHTML = "🛑 Stop Recording";
+
+        } catch (e) {
+          toast("Microphone access denied. Please allow permissions.", "error");
         }
       });
     }
