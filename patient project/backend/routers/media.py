@@ -313,7 +313,8 @@ async def upload_generic_media(
         db.commit()
         db.refresh(new_media)
 
-        new_media.drive_view_link = f"http://127.0.0.1:8000/media/view/{new_media.id}"
+        # new_media.drive_view_link = f"http://127.0.0.1:8000/media/view/{new_media.id}"
+        new_media.drive_view_link = f"/media/view/{new_media.id}"
         db.commit()
 
         return {
