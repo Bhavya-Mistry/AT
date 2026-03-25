@@ -1240,7 +1240,9 @@ const App = (() => {
     const dateName = `New · ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
     $("#currentSessionName").textContent = dateName;
     $("#currentSessionMeta").textContent = "Type your first message to begin";
-    $("#summaryBtn").disabled = false;
+
+    // (Removed the broken summaryBtn reference from here)
+
     renderMessages([]);
     renderSessionList();
     toast("New session started", "success");
@@ -1252,30 +1254,16 @@ const App = (() => {
     if (!firstMessage || firstMessage.length < 3) {
       return `Consultation · ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
     }
-
-    // Clean up the message
     let name = firstMessage
       .replace(/^(hi|hello|hey|doc|doctor|please|i have|i am|i'm|i've been|i feel|i need)\s*/gi, "")
       .replace(/[.!?,;:]+$/, "")
       .trim();
-
-    // Capitalize first letter
-    if (name.length > 0) {
-      name = name[0].toUpperCase() + name.slice(1);
-    }
-
-    // Truncate to reasonable length
-    if (name.length > 40) {
-      name = name.substring(0, 37) + "…";
-    }
-
-    // If cleaning removed everything, fall back to date
-    if (name.length < 3) {
-      return `Consultation · ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
-    }
-
+    if (name.length > 0) name = name[0].toUpperCase() + name.slice(1);
+    if (name.length > 40) name = name.substring(0, 37) + "…";
+    if (name.length < 3) return `Consultation · ${new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
     return name;
   }
+
 
   function openSession(id) {
     state.currentSessionId = id;
@@ -1285,8 +1273,10 @@ const App = (() => {
 
     $("#currentSessionName").textContent = displayName;
     $("#currentSessionMeta").textContent = `${s?.messages?.length || 0} messages · ${formatDate(s?.created_at)}`;
-    $("#summaryBtn").disabled = false;
-    renderMessages(s?.messages || []);
+
+    // (Removed the broken summaryBtn reference from here)
+
+    renderMessages(s?.messages || []); // This will now execute successfully!
     renderSessionList();
     if (s?.summary) appendSummaryCard(s.summary);
     if (state.currentScreen !== "chat") showScreen("chat");
