@@ -909,7 +909,14 @@ const App = (() => {
           const chatId = s.id; // e.g. "chat_2"
 
           // ✅ Show key summary fields: chief complaint, symptoms, summary note
-          const keyFields = ["chief_complaint", "symptoms", "severity", "summary_note"];
+          const keyFields = [
+            "chief_complaint",
+            "symptoms",
+            "severity",
+            "red_flags",
+            "recommended_action",
+            "summary_note"
+          ];
           const displayFields = summaryFields.filter(([k]) => keyFields.includes(k));
 
           return `<div class="summary-list-card">
