@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+    <meta name="api-base" content="http://127.0.0.1:8080">
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
@@ -336,18 +337,18 @@
                                     <div class="chat-session-name" id="currentSessionName">Select a session</div>
                                     <div class="chat-session-meta" id="currentSessionMeta">No session active</div>
                                 </div>
-                                <button class="btn btn-ghost" style="font-size:12px; margin-right:8px;"
+                                <!-- <button class="btn btn-ghost" style="font-size:12px; margin-right:8px;"
                                     id="recordVoiceBtn" type="button" title="Hold to dictate">
                                     🎙️ Dictate
-                                </button>
-                                <button class="btn btn-ghost" style="font-size:12px" data-action="get-summary"
+                                </button> -->
+                                <!-- <button class="btn btn-ghost" style="font-size:12px" data-action="get-summary"
                                     id="summaryBtn" disabled type="button">
                                     <svg viewBox="0 0 24 24" style="width:13px;height:13px">
                                         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
                                         <polyline points="14,2 14,8 20,8" />
                                     </svg>
                                     Summary
-                                </button>
+                                </button> -->
                             </div>
                             <div class="chat-messages" id="chatMessages" role="log" aria-label="Chat messages"
                                 aria-live="polite">
@@ -359,38 +360,39 @@
                                 </div>
                             </div>
                             <div class="chat-input-area">
-                                <div class="chat-input-box">
-                                    <label for="chatInput" class="sr-only">Message</label>
-                                    <textarea class="chat-textarea" id="chatInput" rows="1"
-                                        placeholder="Describe your symptoms…" aria-label="Type your message"></textarea>
-                                    <div class="chat-input-actions">
-                                        <label class="icon-btn" title="Attach file" for="chatFileInput" tabindex="0"
-                                            role="button" aria-label="Attach file">
-                                            <svg viewBox="0 0 24 24">
-                                                <path
-                                                    d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
-                                            </svg>
-                                        </label>
-                                        <input type="file" id="chatFileInput" accept="image/*,.pdf">
-                                        <button class="icon-btn send" title="Send message" data-action="send-chat"
-                                            type="button" id="sendBtn" aria-label="Send message">
-                                            <svg viewBox="0 0 24 24">
-                                                <line x1="22" y1="2" x2="11" y2="13" />
-                                                <polygon points="22,2 15,22 11,13 2,9" />
-                                            </svg>
-                                        </button>
+
+                                <div class="chat-input-row">
+                                    <input type="file" id="chatFileInput" style="display: none;"
+                                        accept="image/*,.pdf" />
+
+                                    <button type="button" class="icon-btn"
+                                        onclick="document.getElementById('chatFileInput').click()" title="Attach File">
+                                        📎
+                                    </button>
+
+                                    <div class="input-wrapper">
+                                        <label for="chatInput" class="sr-only">Message</label>
+                                        <textarea id="chatInput" rows="1" placeholder="Describe your symptoms..."
+                                            aria-label="Type your message"></textarea>
+                                        <button type="button" id="recordVoiceBtn" class="icon-btn mic-btn"
+                                            title="Dictate">🎙️</button>
                                     </div>
+
+                                    <button type="button" id="sendBtn" class="icon-btn send-btn" data-action="send-chat"
+                                        title="Send">
+                                        ➤
+                                    </button>
                                 </div>
+
                                 <div class="chat-hints" role="list" aria-label="Suggested prompts">
                                     <button class="hint-chip" data-hint="I have a headache and fever" type="button"
                                         role="listitem">Headache &amp; fever</button>
                                     <button class="hint-chip" data-hint="Chest pain when breathing" type="button"
                                         role="listitem">Chest pain</button>
-                                    <button class="hint-chip" data-hint="Please SUMMARIZE our conversation"
-                                        type="button" role="listitem">Summarize</button>
                                     <button class="hint-chip" data-hint="I need to check my medications" type="button"
                                         role="listitem">Medications</button>
                                 </div>
+
                             </div>
                         </div>
                     </div>

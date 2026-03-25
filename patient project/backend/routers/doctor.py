@@ -197,6 +197,13 @@ def create_prescription(
     if not history_record:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    # Mark the session summary as reviewed so the frontend clears it from the "Pending" count
+    if history_record.summary and isinstance(history_record.summary, dict):
+        history_record.summary["reviewed"] = True
+        flag_modified(history_record, "summary")
+        # We don't need a separate db.commit() here because the function
+        # commits later when saving the prescription file.
+
     patient = (
         db.query(models.User)
         .filter(models.User.id == history_record.patient_id)
@@ -233,7 +240,8 @@ def create_prescription(
     db.add(new_media)
     db.commit()
 
-    new_media.drive_view_link = f"http://127.0.0.1:8000/media/view/{new_media.id}"
+    # new_media.drive_view_link = f"http://127.0.0.1:8000/media/view/{new_media.id}"
+    new_media.drive_view_link = f"/media/view/{new_media.id}"
     db.commit()
 
     # Inject message into chat

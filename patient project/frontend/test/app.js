@@ -46,6 +46,25 @@ const App = (() => {
   // ═══════════════════════════════════════
   // HELPERS
   // ═══════════════════════════════════════
+
+  function formatMessageText(str) {
+    if (!str) return "";
+
+    // 1. Escape HTML first to prevent security issues (XSS)
+    let safeStr = esc(str);
+
+    // 2. Convert Markdown Bold (**text**) to HTML <strong>text</strong>
+    safeStr = safeStr.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // 3. Convert Markdown Italic (*text*) to HTML <em>text</em>
+    // We make sure not to match the double asterisks from the bold regex
+    safeStr = safeStr.replace(/(^|[^\*])\*([^\*]+)\*/g, '$1<em>$2</em>');
+
+    // 4. Convert newlines to HTML <br> tags
+    safeStr = safeStr.replace(/\n/g, '<br>');
+
+    return safeStr;
+  }
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
   const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
@@ -1111,7 +1130,8 @@ const App = (() => {
           const sender = m.sender === "patient" ? "patient" : m.sender === "system" ? "system" : "ai";
           const avatarMap = { patient: patientInitial, system: "⚙", ai: "🤖" };
           const senderLabel = { patient: patientName, system: "System", ai: "AI Assistant" };
-          const text = esc(m.text || "").replace(/\n/g, "<br>");
+          // const text = esc(m.text || "").replace(/\n/g, "<br>");
+          const text = formatMessageText(m.text);
 
           // Build the avatar with the image tag specifically for patients
           let avatarInner = `<span class="avatar-text">${avatarMap[sender]}</span>`;
@@ -1295,8 +1315,9 @@ const App = (() => {
     const div = document.createElement("div");
     div.className = `msg ${sc}`;
     div.setAttribute("role", "article");
-    const text = esc(msg.text || "").replace(/\n/g, "<br>");
+    // const text = esc(msg.text || "").replace(/\n/g, "<br>");
 
+    const text = formatMessageText(msg.text);
     let avatarInner = `<span class="avatar-text">${avatarMap[sc]}</span>`;
     if (sc === "patient") {
       avatarInner += `<img class="avatar-img" data-userid="me" data-haspic="${state.hasProfilePic}" src="" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:50%;" />`;
@@ -1561,11 +1582,23 @@ const App = (() => {
       return;
     }
 
+    // --- URL PORT & SLASH FIX ---
+    let fetchUrl = url;
+    if (fetchUrl.includes("127.0.0.1:8000")) {
+      // Fix old database entries that have the frontend port hardcoded
+      fetchUrl = fetchUrl.replace("http://127.0.0.1:8000", CONFIG.API_BASE);
+    } else if (!fetchUrl.startsWith("http")) {
+      // Fix new database entries that use relative paths
+      if (!fetchUrl.startsWith("/")) fetchUrl = "/" + fetchUrl;
+      fetchUrl = CONFIG.API_BASE + fetchUrl;
+    }
+    // ----------------------------
+
     toast("Loading file…", "info");
 
     try {
-      // Fetch with auth header
-      const res = await fetch(url, {
+      // Fetch with auth header using the corrected URL
+      const res = await fetch(fetchUrl, {
         headers: {
           "Authorization": `Bearer ${state.token}`,
         },
@@ -1998,7 +2031,6 @@ const App = (() => {
       });
     });
     // --- 🎙️ VOICE TO TEXT (CHAT) ---
-    // --- 🎙️ VOICE TO TEXT (CHAT) ---
     let mediaRecorder = null;
     let audioChunks = [];
     let audioStream = null;
@@ -2006,11 +2038,12 @@ const App = (() => {
 
     if (recordBtn) {
       recordBtn.addEventListener("click", async () => {
+
         // IF ALREADY RECORDING -> STOP
         if (mediaRecorder && mediaRecorder.state === "recording") {
           mediaRecorder.stop();
           recordBtn.classList.remove("is-recording");
-          recordBtn.innerHTML = "🎙️ Dictate";
+          recordBtn.innerHTML = "🎙️"; // Change icon back to mic
           return;
         }
 
@@ -2023,7 +2056,7 @@ const App = (() => {
           mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
 
           mediaRecorder.onstop = async () => {
-            // 1. Release the microphone hardware immediately!
+            // 1. Release the microphone hardware immediately
             if (audioStream) {
               audioStream.getTracks().forEach(track => track.stop());
             }
@@ -2036,7 +2069,7 @@ const App = (() => {
             // 3. Send to server
             try {
               toast("Transcribing voice...", "info");
-              recordBtn.disabled = true; // prevent spam clicking while processing
+              recordBtn.disabled = true;
 
               const res = await fetch(`${CONFIG.API_BASE}/chat/voice-to-text`, {
                 method: "POST",
@@ -2051,8 +2084,7 @@ const App = (() => {
                 const input = $("#chatInput");
                 input.value = input.value ? input.value + " " + data.text : data.text;
                 toast("Voice transcribed!", "success");
-                // Auto-resize the input box if the text is long
-                autoResize(input);
+                if (typeof autoResize === 'function') autoResize(input);
               }
             } catch (e) {
               toast(e.message, "error");
@@ -2063,14 +2095,14 @@ const App = (() => {
 
           mediaRecorder.start();
           recordBtn.classList.add("is-recording");
-          recordBtn.innerHTML = "🛑 Stop Recording";
+          recordBtn.innerHTML = "🛑"; // Change icon to stop
 
         } catch (e) {
-          toast("Microphone access denied. Please allow permissions.", "error");
+          console.error("Mic error:", e);
+          toast("Microphone access denied.", "error");
         }
       });
     }
-
     // --- 🖼️ PROFILE PICTURE UPLOAD ---
     // --- 🖼️ PROFILE PICTURE UPLOAD & REMOVE ---
     const profilePicUpload = $("#profilePicUpload");
