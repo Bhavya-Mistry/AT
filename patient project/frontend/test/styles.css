@@ -1454,6 +1454,39 @@ textarea.form-input {
   overflow: hidden;
 }
 
+.file-transcript.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.file-transcript.clickable:hover {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.05);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 8px -12px 0 -12px;
+}
+
+.file-transcript.clickable::after {
+  /* content: "Click to read full transcript"; */
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 10px;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  background: var(--background);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--mono);
+}
+
+.file-transcript.clickable:hover::after {
+  opacity: 0.8;
+}
+
 .file-card-actions {
   position: absolute;
   top: 14px;
