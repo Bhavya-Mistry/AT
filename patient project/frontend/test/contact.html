@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contact Us — MediConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="shared-page.css" />
+    <style>
+        .contact-layout {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 48px;
+            margin: 0 0 64px;
+        }
+
+        .contact-channels {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .channel-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px 22px;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            transition: border-color var(--transition);
+        }
+
+        .channel-card:hover {
+            border-color: var(--border-hi);
+        }
+
+        .channel-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .channel-label {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-faint);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 3px;
+        }
+
+        .channel-value {
+            font-size: 15px;
+            color: var(--text);
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+
+        .channel-hours {
+            font-size: 12px;
+            color: var(--text-faint);
+        }
+
+        .contact-form {
+            background: var(--card);
+            border: 1px solid var(--border-hi);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+        }
+
+        .contact-form h3 {
+            font-family: var(--serif);
+            font-size: 20px;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .contact-form p {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            font-family: var(--mono);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .form-input {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border-hi);
+            border-radius: var(--radius);
+            padding: 11px 14px;
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 14px;
+            outline: none;
+            transition: border-color var(--transition);
+        }
+
+        .form-input:focus {
+            border-color: var(--accent);
+        }
+
+        .form-select {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border-hi);
+            border-radius: var(--radius);
+            padding: 11px 14px;
+            color: var(--text-dim);
+            font-family: var(--sans);
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        textarea.form-input {
+            resize: vertical;
+            min-height: 110px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 13px;
+            border-radius: var(--radius);
+            background: var(--accent);
+            color: #0D0D0F;
+            font-family: var(--sans);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all var(--transition);
+            margin-top: 4px;
+        }
+
+        .submit-btn:hover {
+            background: var(--accent-hover);
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .success-msg {
+            display: none;
+            background: rgba(114, 181, 136, 0.1);
+            border: 1px solid rgba(114, 181, 136, 0.3);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            color: var(--green);
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        @media(max-width:768px) {
+            .contact-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="nav" id="mainNav">
+        <a class="nav-logo" href="landing.html">
+            <div class="nav-logo-mark"><svg viewBox="0 0 24 24">
+                    <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                        fill="none" />
+                </svg></div>
+            <div class="nav-logo-text">Medi<span>Connect</span></div>
+        </a>
+        <ul class="nav-links">
+            <li><a href="how-it-works.html">How it works</a></li>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="doctors.html">Doctors</a></li>
+            <li><a href="help-centre.html">Help</a></li>
+        </ul>
+        <div style="display:flex;gap:10px">
+            <button class="btn-nav-ghost" onclick="location.href='index.html'">Sign in</button>
+            <button class="btn-nav-primary"
+                onclick="sessionStorage.setItem('authMode','register');location.href='index.html'">Get started</button>
+        </div>
+    </nav>
+
+    <div class="page-hero">
+        <div class="breadcrumb">
+            <a href="landing.html">Home</a><span class="breadcrumb-sep">/</span>
+            <span>Support</span><span class="breadcrumb-sep">/</span>
+            <span style="color:var(--text-dim)">Contact Us</span>
+        </div>
+        <div class="page-tag">Support</div>
+        <h1 class="page-title">We're here <em>to help</em></h1>
+        <p class="page-subtitle">Our support team typically responds within 2 hours. For urgent medical questions,
+            please start an AI consultation in your portal.</p>
+    </div>
+
+    <div class="page-content">
+        <div class="contact-layout">
+            <div class="contact-channels">
+                <div class="channel-card">
+                    <div class="channel-icon" style="background:var(--accent-dim)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                            <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="channel-label">Email</div>
+                        <div class="channel-value"><a href="mailto:support@mediconnect.health"
+                                style="color:var(--text)">support@mediconnect.health</a></div>
+                        <div class="channel-hours">Response within 2 hours · 24/7</div>
+                    </div>
+                </div>
+                <div class="channel-card">
+                    <div class="channel-icon" style="background:rgba(114,181,136,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:18px;height:18px;stroke:var(--green);fill:none;stroke-width:2">
+                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="channel-label">Live chat</div>
+                        <div class="channel-value">Chat in your portal</div>
+                        <div class="channel-hours">Mon–Fri 8 am–10 pm EST</div>
+                    </div>
+                </div>
+                <div class="channel-card">
+                    <div class="channel-icon" style="background:rgba(123,167,196,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:18px;height:18px;stroke:var(--blue);fill:none;stroke-width:2">
+                            <path
+                                d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.72 6.72l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="channel-label">Phone</div>
+                        <div class="channel-value">+1 (800) 555-MEDI</div>
+                        <div class="channel-hours">Mon–Fri 9 am–6 pm EST</div>
+                    </div>
+                </div>
+                <div class="channel-card">
+                    <div class="channel-icon" style="background:rgba(158,134,200,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:18px;height:18px;stroke:var(--purple);fill:none;stroke-width:2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="channel-label">Security issues</div>
+                        <div class="channel-value"><a href="mailto:security@mediconnect.health"
+                                style="color:var(--text)">security@mediconnect.health</a></div>
+                        <div class="channel-hours">For vulnerability reports · PGP key available</div>
+                    </div>
+                </div>
+                <div class="channel-card">
+                    <div class="channel-icon" style="background:rgba(224,112,112,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:18px;height:18px;stroke:var(--red);fill:none;stroke-width:2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 8v4M12 16h.01" />
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="channel-label">Medical emergency</div>
+                        <div class="channel-value" style="color:var(--red)">Call 911 immediately</div>
+                        <div class="channel-hours">Do not use MediConnect for emergencies</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="contact-form">
+                <h3>Send us a message</h3>
+                <p>We'll get back to you within 2 hours on weekdays, and within 4 hours on weekends.</p>
+                <div class="form-group">
+                    <label class="form-label" for="contactName">Full name</label>
+                    <input type="text" class="form-input" id="contactName" placeholder="Your name" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="contactEmail">Email address</label>
+                    <input type="email" class="form-input" id="contactEmail" placeholder="you@example.com" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="contactType">Topic</label>
+                    <select class="form-select" id="contactType">
+                        <option value="">Select a topic…</option>
+                        <option>Account & login</option>
+                        <option>Consultation question</option>
+                        <option>Prescription enquiry</option>
+                        <option>Billing & payments</option>
+                        <option>Privacy & data request</option>
+                        <option>Technical issue</option>
+                        <option>Feedback or suggestion</option>
+                        <option>Enterprise / BAA enquiry</option>
+                        <option>Doctor application</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="contactMsg">Message</label>
+                    <textarea class="form-input" id="contactMsg"
+                        placeholder="Describe your question or issue in as much detail as you can…"></textarea>
+                </div>
+                <button class="submit-btn" onclick="submitContact()">Send message</button>
+                <div class="success-msg" id="successMsg">✓ Message sent! We'll be in touch within 2 hours.</div>
+            </div>
+        </div>
+
+        <h2>Frequently used links</h2>
+        <p>Before contacting us, you might find your answer here:</p>
+        <ul>
+            <li><a href="help-centre.html">Help Centre</a> — FAQs and step-by-step guides</li>
+            <li><a href="status.html">Status Page</a> — check for any current platform issues</li>
+            <li><a href="privacy-policy.html">Privacy Policy</a> — data requests and deletion</li>
+            <li><a href="baa-agreement.html">BAA Agreement</a> — enterprise and institutional enquiries</li>
+            <li><a href="security.html">Security</a> — vulnerability reporting</li>
+        </ul>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="footer-logo">
+                    <div class="footer-logo-mark"><svg viewBox="0 0 24 24">
+                            <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                                fill="none" />
+                        </svg></div>
+                    <div class="footer-logo-text">Medi<span>Connect</span></div>
+                </div>
+                <p class="footer-brand-desc">AI-assisted medical consultations, digital records, and doctor access — in
+                    one secure platform.</p>
+            </div>
+            <div>
+                <div class="footer-col-title">Platform</div>
+                <ul class="footer-links">
+                    <li><a href="how-it-works.html">How it works</a></li>
+                    <li><a href="features.html">Features</a></li>
+                    <li><a href="doctors.html">Doctors</a></li>
+                    <li><a href="index.html">Patient Portal</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Legal</div>
+                <ul class="footer-links">
+                    <li><a href="privacy-policy.html">Privacy Policy</a></li>
+                    <li><a href="terms-of-service.html">Terms of Service</a></li>
+                    <li><a href="baa-agreement.html">BAA Agreement</a></li>
+                    <li><a href="cookie-policy.html">Cookie Policy</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Support</div>
+                <ul class="footer-links">
+                    <li><a href="help-centre.html">Help Centre</a></li>
+                    <li><a href="contact.html" class="active">Contact Us</a></li>
+                    <li><a href="status.html">Status Page</a></li>
+                    <li><a href="security.html">Security</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2025 MediConnect. All rights reserved.</span>
+            <div class="footer-bottom-links">
+                <a href="privacy-policy.html">Privacy</a><a href="terms-of-service.html">Terms</a><a
+                    href="help-centre.html">Accessibility</a>
+            </div>
+        </div>
+    </footer>
+    <script>
+        window.addEventListener('scroll', () => { document.getElementById('mainNav').style.background = window.scrollY > 40 ? 'rgba(13,13,15,0.97)' : 'rgba(13,13,15,0.85)'; }, { passive: true });
+        function submitContact() {
+            const name = document.getElementById('contactName').value;
+            const email = document.getElementById('contactEmail').value;
+            const msg = document.getElementById('contactMsg').value;
+            if (!name || !email || !msg) { alert('Please fill in all required fields.'); return; }
+            document.getElementById('successMsg').style.display = 'block';
+            document.querySelector('.submit-btn').disabled = true;
+            document.querySelector('.submit-btn').textContent = 'Sent ✓';
+        }
+    </script>
+</body>
+
+</html>
