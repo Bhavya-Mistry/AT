@@ -5,14 +5,7 @@ const App = (() => {
   // CONFIG
   // ═══════════════════════════════════════
   const CONFIG = Object.freeze({
-    API_BASE: (() => {
-      const meta = document.querySelector('meta[name="api-base"]');
-      if (meta) return meta.content;
-      const h = location.hostname;
-      return h === "localhost" || h === "127.0.0.1"
-        ? "http://127.0.0.1:8080"
-        : `${location.origin}/api`;
-    })(),
+    API_BASE: "https://patient-portal-qh4l.onrender.com",
     TOKEN_KEY: "mc_token",
     USER_KEY: "mc_user",
     MAX_FILE_SIZE: 25 * 1024 * 1024,
