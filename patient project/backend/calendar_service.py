@@ -3,6 +3,8 @@ import os
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from datetime import timedelta
+import json
+from google.auth.transport.requests import Request
 import uuid
 
 # 1. SETUP PATHS
@@ -11,13 +13,34 @@ TOKEN_FILE = os.path.join(BASE_DIR, "token.json")
 
 
 def get_calendar_service():
-    """Authenticates using the saved User Token."""
-    if not os.path.exists(TOKEN_FILE):
-        print("Error: token.json not found.")
-        return None
+    """Authenticates using the saved User Token from Env Var or File."""
+    token_json = os.getenv("GOOGLE_DRIVE_TOKEN")
+
     try:
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE)
-        return build("calendar", "v3", credentials=creds)
+        # 1. Try fetching from Environment Variable (.env)
+        if token_json:
+            info = json.loads(token_json)
+            creds = Credentials(
+                token=None,
+                refresh_token=info["refresh_token"],
+                token_uri=info["token_uri"],
+                client_id=info["client_id"],
+                client_secret=info["client_secret"],
+                scopes=info["scopes"],
+            )
+            # Refresh token in memory
+            creds.refresh(Request())
+            return build("calendar", "v3", credentials=creds)
+
+        # 2. Fallback to physical token.json file (for local dev)
+        elif os.path.exists(TOKEN_FILE):
+            creds = Credentials.from_authorized_user_file(TOKEN_FILE)
+            return build("calendar", "v3", credentials=creds)
+
+        else:
+            print("Error: No Google Token found in .env or token.json")
+            return None
+
     except Exception as e:
         print(f"Auth Error: {e}")
         return None
