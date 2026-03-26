@@ -51,8 +51,6 @@ IMPORTANT JSON RULES (FOR DOCTOR REVIEW):
     "summary_note": "A 1-2 sentence clinical summary for the physician"
   }
 """
-
-
 def analyze_medical_image(file_path: str) -> str:
     # Upload file using your existing client
     upload = client.files.upload(file=file_path)
@@ -67,13 +65,36 @@ def analyze_medical_image(file_path: str) -> str:
                         file_uri=upload.uri, mime_type=upload.mime_type
                     ),
                     types.Part.from_text(
-                        text="Extract the text from this medical report/prescription. Summarize key findings."
+                        # 👇 UPDATED PROMPT: Handles both text documents and visual symptoms
+                        text="Analyze this medical image. If it is a document, test report, or prescription, extract the text and summarize key findings. If it is a photograph of a physical symptom (like a rash, wound, or swelling), describe the visual findings in detail to assist a doctor in triage. Be professional and objective."
                     ),
                 ],
             )
         ],
     )
     return response.text
+
+# def analyze_medical_image(file_path: str) -> str:
+#     # Upload file using your existing client
+#     upload = client.files.upload(file=file_path)
+
+#     response = client.models.generate_content(
+#         model="gemini-2.5-flash",
+#         contents=[
+#             types.Content(
+#                 role="user",
+#                 parts=[
+#                     types.Part.from_uri(
+#                         file_uri=upload.uri, mime_type=upload.mime_type
+#                     ),
+#                     types.Part.from_text(
+#                         text="Extract the text from this medical report/prescription. Summarize key findings."
+#                     ),
+#                 ],
+#             )
+#         ],
+#     )
+#     return response.text
 
 
 def get_ai_response(db_history: list, new_user_message: str) -> str:
