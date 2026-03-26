@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description"
+        content="MediConnect Business Associate Agreement — HIPAA BAA for healthcare organisations." />
+    <title>BAA Agreement — MediConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="shared-page.css" />
+    <style>
+        .baa-card {
+            background: var(--card);
+            border: 1px solid var(--border-hi);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            margin: 32px 0;
+        }
+
+        .baa-card h3 {
+            font-family: var(--serif);
+            font-size: 20px;
+            color: var(--text);
+            margin-bottom: 12px;
+        }
+
+        .baa-card p {
+            color: var(--text-dim);
+            margin-bottom: 0;
+        }
+
+        .baa-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 28px 0;
+        }
+
+        .baa-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+
+        .baa-item h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .baa-item p {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin: 0;
+        }
+
+        .baa-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .cta-form {
+            background: var(--card);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius-xl);
+            padding: 36px;
+            margin: 40px 0;
+            text-align: center;
+        }
+
+        .cta-form h3 {
+            font-family: var(--serif);
+            font-size: 24px;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .cta-form p {
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+
+        @media(max-width:640px) {
+            .baa-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="nav" id="mainNav">
+        <a class="nav-logo" href="landing.html">
+            <div class="nav-logo-mark"><svg viewBox="0 0 24 24">
+                    <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                        fill="none" />
+                </svg></div>
+            <div class="nav-logo-text">Medi<span>Connect</span></div>
+        </a>
+        <ul class="nav-links">
+            <li><a href="how-it-works.html">How it works</a></li>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="doctors.html">Doctors</a></li>
+            <li><a href="help-centre.html">Help</a></li>
+        </ul>
+        <div style="display:flex;gap:10px">
+            <button class="btn-nav-ghost" onclick="location.href='index.html'">Sign in</button>
+            <button class="btn-nav-primary"
+                onclick="sessionStorage.setItem('authMode','register');location.href='index.html'">Get started</button>
+        </div>
+    </nav>
+
+    <div class="page-hero">
+        <div class="breadcrumb">
+            <a href="landing.html">Home</a><span class="breadcrumb-sep">/</span>
+            <span>Legal</span><span class="breadcrumb-sep">/</span>
+            <span style="color:var(--text-dim)">BAA Agreement</span>
+        </div>
+        <div class="page-tag">Legal · Enterprise</div>
+        <h1 class="page-title">Business Associate <em>Agreement</em></h1>
+        <p class="page-subtitle">For healthcare organisations using MediConnect in a HIPAA-covered capacity. Our BAA
+            ensures your use of the platform meets federal privacy law requirements.</p>
+    </div>
+
+    <div class="page-content">
+
+        <div class="highlight-box">
+            <p><strong>What is a BAA?</strong> Under HIPAA, if your organisation is a Covered Entity (such as a
+                hospital, clinic, or health plan) and you use a third-party service that handles Protected Health
+                Information on your behalf, you are required to have a Business Associate Agreement in place.
+                MediConnect serves as a Business Associate in this relationship.</p>
+        </div>
+
+        <h2>Who needs a BAA?</h2>
+        <p>You need a BAA with MediConnect if your organisation is:</p>
+        <ul>
+            <li>A healthcare provider (hospital, clinic, medical practice, pharmacy)</li>
+            <li>A health plan (insurance company, HMO, Medicare/Medicaid)</li>
+            <li>A healthcare clearinghouse</li>
+            <li>A Business Associate of a Covered Entity that processes PHI through our platform</li>
+        </ul>
+        <p>Individual patients using MediConnect for personal healthcare do not require a BAA — this is handled within
+            our standard <a href="terms-of-service.html">Terms of Service</a> and <a href="privacy-policy.html">Privacy
+                Policy</a>.</p>
+
+        <h2>What our BAA covers</h2>
+        <div class="baa-grid">
+            <div class="baa-item">
+                <h4>
+                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--accent);fill:none;stroke-width:2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                    PHI safeguarding
+                </h4>
+                <p>We agree to implement administrative, physical, and technical safeguards to protect PHI as required
+                    by the HIPAA Security Rule.</p>
+            </div>
+            <div class="baa-item">
+                <h4>
+                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--blue);fill:none;stroke-width:2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    Permitted uses
+                </h4>
+                <p>PHI is used only to provide healthcare operations services on your behalf. No secondary uses without
+                    explicit permission.</p>
+            </div>
+            <div class="baa-item">
+                <h4>
+                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--purple);fill:none;stroke-width:2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                    Breach notification
+                </h4>
+                <p>We will notify you within 60 days of discovering a breach of unsecured PHI, as required by the HIPAA
+                    Breach Notification Rule.</p>
+            </div>
+            <div class="baa-item">
+                <h4>
+                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--green);fill:none;stroke-width:2">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    Individual rights
+                </h4>
+                <p>We support your obligations to provide individuals access to, and accounting of, their PHI in a
+                    timely manner.</p>
+            </div>
+            <div class="baa-item">
+                <h4>
+                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--accent);fill:none;stroke-width:2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                    Subcontractor BAAs
+                </h4>
+                <p>We ensure all subcontractors who may access PHI have appropriate BAAs in place with MediConnect.</p>
+            </div>
+            <div class="baa-item">
+                <h4>
+                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--red);fill:none;stroke-width:2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                    </svg>
+                    Termination & return
+                </h4>
+                <p>Upon termination of the BAA, we will return or destroy all PHI as directed and certify that all PHI
+                    has been secured.</p>
+            </div>
+        </div>
+
+        <h2>Standard BAA terms</h2>
+        <p>Our standard BAA is based on the HHS model Business Associate Agreement and includes all required provisions
+            under 45 CFR §164.308, §164.310, §164.312, and §164.316. Key terms include:</p>
+        <ul>
+            <li><strong>Term:</strong> Coterminous with the underlying service agreement</li>
+            <li><strong>Governing law:</strong> Federal law (HIPAA/HITECH) and the laws of the State of California</li>
+            <li><strong>Liability allocation:</strong> Each party is responsible for its own HIPAA compliance
+                obligations</li>
+            <li><strong>Audit rights:</strong> We will cooperate with HHS OCR audits and investigations</li>
+            <li><strong>Amendment:</strong> We may amend the BAA to comply with changes in HIPAA regulations with 30
+                days notice</li>
+        </ul>
+
+        <h2>Requesting a BAA</h2>
+        <p>Enterprise and institutional customers can request our standard BAA through the following process:</p>
+        <ol>
+            <li>Contact our enterprise team at <a
+                    href="mailto:enterprise@mediconnect.health">enterprise@mediconnect.health</a></li>
+            <li>Provide your organisation name, type (Covered Entity or Business Associate), and primary contact</li>
+            <li>Our legal team will send the BAA via DocuSign within 2 business days</li>
+            <li>Once countersigned, the BAA is effective immediately</li>
+        </ol>
+        <p>If you require custom BAA terms, our legal team is available to negotiate amendments. Note that material
+            deviations from our standard form may require additional review time.</p>
+
+        <div class="cta-form">
+            <h3>Request a BAA</h3>
+            <p>Fill out the form below and our enterprise team will be in touch within one business day.</p>
+            <div style="display:flex;flex-direction:column;gap:12px;text-align:left;max-width:420px;margin:0 auto">
+                <input type="text" placeholder="Organisation name"
+                    style="background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--radius);padding:12px 16px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;"
+                    onfocus="this.style.borderColor='var(--accent)'"
+                    onblur="this.style.borderColor='var(--border-hi)'" />
+                <input type="email" placeholder="Your email address"
+                    style="background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--radius);padding:12px 16px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;"
+                    onfocus="this.style.borderColor='var(--accent)'"
+                    onblur="this.style.borderColor='var(--border-hi)'" />
+                <select
+                    style="background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--radius);padding:12px 16px;color:var(--text-dim);font-family:var(--sans);font-size:14px;outline:none;cursor:pointer;">
+                    <option value="">Organisation type</option>
+                    <option>Healthcare provider</option>
+                    <option>Health plan</option>
+                    <option>Healthcare clearinghouse</option>
+                    <option>Business Associate</option>
+                    <option>Other</option>
+                </select>
+                <button class="btn-nav-primary" style="padding:13px;font-size:14px;border-radius:var(--radius)"
+                    onclick="alert('Thank you. Our enterprise team will contact you within one business day.')">Request
+                    BAA →</button>
+            </div>
+            <p style="font-size:12px;color:var(--text-faint);margin-top:16px">Or email us directly at <a
+                    href="mailto:enterprise@mediconnect.health"
+                    style="color:var(--text-faint);border-bottom:1px solid var(--border-hi)">enterprise@mediconnect.health</a>
+            </p>
+        </div>
+
+        <div class="info-box">
+            <p>📎 Related documents: <a href="privacy-policy.html"
+                    style="color:var(--blue);border-bottom:1px solid rgba(123,167,196,0.3)">Privacy Policy</a> · <a
+                    href="security.html"
+                    style="color:var(--blue);border-bottom:1px solid rgba(123,167,196,0.3)">Security Overview</a> · <a
+                    href="terms-of-service.html"
+                    style="color:var(--blue);border-bottom:1px solid rgba(123,167,196,0.3)">Terms of Service</a></p>
+        </div>
+
+    </div>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="footer-logo">
+                    <div class="footer-logo-mark"><svg viewBox="0 0 24 24">
+                            <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                                fill="none" />
+                        </svg></div>
+                    <div class="footer-logo-text">Medi<span>Connect</span></div>
+                </div>
+                <p class="footer-brand-desc">AI-assisted medical consultations, digital records, and doctor access — in
+                    one secure platform.</p>
+            </div>
+            <div>
+                <div class="footer-col-title">Platform</div>
+                <ul class="footer-links">
+                    <li><a href="how-it-works.html">How it works</a></li>
+                    <li><a href="features.html">Features</a></li>
+                    <li><a href="doctors.html">Doctors</a></li>
+                    <li><a href="index.html">Patient Portal</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Legal</div>
+                <ul class="footer-links">
+                    <li><a href="privacy-policy.html">Privacy Policy</a></li>
+                    <li><a href="terms-of-service.html">Terms of Service</a></li>
+                    <li><a href="baa-agreement.html" class="active">BAA Agreement</a></li>
+                    <li><a href="cookie-policy.html">Cookie Policy</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Support</div>
+                <ul class="footer-links">
+                    <li><a href="help-centre.html">Help Centre</a></li>
+                    <li><a href="contact.html">Contact Us</a></li>
+                    <li><a href="status.html">Status Page</a></li>
+                    <li><a href="security.html">Security</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2025 MediConnect. All rights reserved.</span>
+            <div class="footer-bottom-links">
+                <a href="privacy-policy.html">Privacy</a><a href="terms-of-service.html">Terms</a><a
+                    href="help-centre.html">Accessibility</a>
+            </div>
+        </div>
+    </footer>
+    <script>window.addEventListener('scroll', () => { document.getElementById('mainNav').style.background = window.scrollY > 40 ? 'rgba(13,13,15,0.97)' : 'rgba(13,13,15,0.85)'; }, { passive: true });</script>
+</body>
+
+</html>

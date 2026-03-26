@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Status Page — MediConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="shared-page.css" />
+    <style>
+        .status-hero {
+            text-align: center;
+            padding: 32px;
+            background: rgba(114, 181, 136, 0.08);
+            border: 1px solid rgba(114, 181, 136, 0.2);
+            border-radius: var(--radius-xl);
+            margin: 0 0 40px;
+        }
+
+        .status-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .status-dot.green {
+            background: var(--green);
+            box-shadow: 0 0 12px rgba(114, 181, 136, 0.5);
+            animation: pulse-green 2s infinite;
+        }
+
+        .status-dot.yellow {
+            background: #D4956A;
+            box-shadow: 0 0 12px rgba(212, 149, 106, 0.5);
+        }
+
+        .status-dot.red {
+            background: var(--red);
+            box-shadow: 0 0 12px rgba(224, 112, 112, 0.5);
+        }
+
+        @keyframes pulse-green {
+
+            0%,
+            100% {
+                box-shadow: 0 0 8px rgba(114, 181, 136, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 16px rgba(114, 181, 136, 0.7);
+            }
+        }
+
+        .status-headline {
+            font-family: var(--serif);
+            font-size: 28px;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .status-updated {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text-faint);
+        }
+
+        .services-list {
+            margin: 0 0 40px;
+        }
+
+        .service-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .service-row:last-child {
+            border-bottom: none;
+        }
+
+        .service-name {
+            font-size: 14px;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .service-sub {
+            font-size: 12px;
+            color: var(--text-faint);
+            margin-top: 2px;
+        }
+
+        .service-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--mono);
+            font-size: 12px;
+        }
+
+        .service-badge.op {
+            color: var(--green);
+        }
+
+        .service-badge.deg {
+            color: #D4956A;
+        }
+
+        .service-badge.down {
+            color: var(--red);
+        }
+
+        .uptime-bar {
+            display: flex;
+            gap: 2px;
+            margin-top: 6px;
+        }
+
+        .uptime-seg {
+            height: 6px;
+            border-radius: 2px;
+            flex: 1;
+        }
+
+        .uptime-seg.up {
+            background: var(--green);
+            opacity: 0.7;
+        }
+
+        .uptime-seg.dn {
+            background: var(--red);
+            opacity: 0.8;
+        }
+
+        .uptime-seg.tod {
+            background: var(--green);
+            opacity: 1;
+        }
+
+        .incident-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px 22px;
+            margin-bottom: 12px;
+        }
+
+        .incident-date {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-faint);
+            margin-bottom: 6px;
+        }
+
+        .incident-title {
+            font-size: 14px;
+            color: var(--text);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .incident-update {
+            font-size: 13px;
+            color: var(--text-dim);
+            display: flex;
+            gap: 10px;
+            padding: 6px 0;
+        }
+
+        .incident-time {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-faint);
+            width: 70px;
+            flex-shrink: 0;
+        }
+
+        .resolved-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 100px;
+            background: rgba(114, 181, 136, 0.12);
+            color: var(--green);
+            font-family: var(--mono);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="nav" id="mainNav">
+        <a class="nav-logo" href="landing.html">
+            <div class="nav-logo-mark"><svg viewBox="0 0 24 24">
+                    <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                        fill="none" />
+                </svg></div>
+            <div class="nav-logo-text">Medi<span>Connect</span></div>
+        </a>
+        <ul class="nav-links">
+            <li><a href="how-it-works.html">How it works</a></li>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="doctors.html">Doctors</a></li>
+            <li><a href="help-centre.html">Help</a></li>
+        </ul>
+        <div style="display:flex;gap:10px">
+            <button class="btn-nav-ghost" onclick="location.href='index.html'">Sign in</button>
+            <button class="btn-nav-primary"
+                onclick="sessionStorage.setItem('authMode','register');location.href='index.html'">Get started</button>
+        </div>
+    </nav>
+
+    <div class="page-hero">
+        <div class="breadcrumb">
+            <a href="landing.html">Home</a><span class="breadcrumb-sep">/</span>
+            <span>Support</span><span class="breadcrumb-sep">/</span>
+            <span style="color:var(--text-dim)">Status Page</span>
+        </div>
+        <div class="page-tag">Support</div>
+        <h1 class="page-title">System <em>Status</em></h1>
+        <p class="page-subtitle">Real-time status and incident history for all MediConnect services.</p>
+    </div>
+
+    <div class="page-content">
+
+        <div class="status-hero">
+            <div style="margin-bottom:10px"><span class="status-dot green"></span></div>
+            <div class="status-headline">All systems operational</div>
+            <div class="status-updated" id="lastUpdated">Last updated: just now</div>
+        </div>
+
+        <h2>Services</h2>
+        <div class="services-list">
+            <div class="service-row">
+                <div>
+                    <div class="service-name">Patient Portal</div>
+                    <div class="service-sub">Authentication, dashboard, health records</div>
+                    <div class="uptime-bar" id="bar1"></div>
+                </div>
+                <div class="service-badge op"><span class="status-dot green"
+                        style="width:8px;height:8px;margin-right:4px"></span>Operational</div>
+            </div>
+            <div class="service-row">
+                <div>
+                    <div class="service-name">AI Consultation Engine</div>
+                    <div class="service-sub">Symptom intake, triage, case preparation</div>
+                    <div class="uptime-bar" id="bar2"></div>
+                </div>
+                <div class="service-badge op"><span class="status-dot green"
+                        style="width:8px;height:8px;margin-right:4px"></span>Operational</div>
+            </div>
+            <div class="service-row">
+                <div>
+                    <div class="service-name">Doctor Network</div>
+                    <div class="service-sub">Physician matching and consultation routing</div>
+                    <div class="uptime-bar" id="bar3"></div>
+                </div>
+                <div class="service-badge op"><span class="status-dot green"
+                        style="width:8px;height:8px;margin-right:4px"></span>Operational</div>
+            </div>
+            <div class="service-row">
+                <div>
+                    <div class="service-name">File Storage & Upload</div>
+                    <div class="service-sub">Medical file upload and retrieval</div>
+                    <div class="uptime-bar" id="bar4"></div>
+                </div>
+                <div class="service-badge op"><span class="status-dot green"
+                        style="width:8px;height:8px;margin-right:4px"></span>Operational</div>
+            </div>
+            <div class="service-row">
+                <div>
+                    <div class="service-name">Notifications</div>
+                    <div class="service-sub">Email and in-app notifications</div>
+                    <div class="uptime-bar" id="bar5"></div>
+                </div>
+                <div class="service-badge op"><span class="status-dot green"
+                        style="width:8px;height:8px;margin-right:4px"></span>Operational</div>
+            </div>
+            <div class="service-row">
+                <div>
+                    <div class="service-name">API</div>
+                    <div class="service-sub">Platform API and integrations</div>
+                    <div class="uptime-bar" id="bar6"></div>
+                </div>
+                <div class="service-badge op"><span class="status-dot green"
+                        style="width:8px;height:8px;margin-right:4px"></span>Operational</div>
+            </div>
+        </div>
+
+        <h2>Past incidents</h2>
+        <p>No incidents in the last 30 days. Below is a record of recent resolved incidents.</p>
+
+        <div class="incident-card">
+            <div class="incident-date">12 February 2025 &nbsp;<span class="resolved-tag">Resolved</span></div>
+            <div class="incident-title">Elevated AI response times</div>
+            <div class="incident-update">
+                <div class="incident-time">14:32 UTC</div>
+                <div>Identified increased load on AI consultation engine causing response delays of 10–25 seconds.</div>
+            </div>
+            <div class="incident-update">
+                <div class="incident-time">15:04 UTC</div>
+                <div>Additional capacity provisioned. Response times returning to normal.</div>
+            </div>
+            <div class="incident-update">
+                <div class="incident-time">15:18 UTC</div>
+                <div>Fully resolved. All services operating normally. Duration: 46 minutes.</div>
+            </div>
+        </div>
+
+        <div class="incident-card">
+            <div class="incident-date">28 January 2025 &nbsp;<span class="resolved-tag">Resolved</span></div>
+            <div class="incident-title">File upload unavailable for some users</div>
+            <div class="incident-update">
+                <div class="incident-time">09:14 UTC</div>
+                <div>Reports received of file upload failures for a subset of users. Investigating.</div>
+            </div>
+            <div class="incident-update">
+                <div class="incident-time">09:41 UTC</div>
+                <div>Root cause identified: certificate renewal issue in file storage service. Fix deployed.</div>
+            </div>
+            <div class="incident-update">
+                <div class="incident-time">09:47 UTC</div>
+                <div>Resolved. File uploads restored. Affected users have been notified. Duration: 33 minutes.</div>
+            </div>
+        </div>
+
+        <div
+            style="margin-top:32px;padding:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg)">
+            <p style="font-family:var(--mono);font-size:12px;color:var(--text-faint);margin:0">Subscribe to status
+                updates: <a href="mailto:status@mediconnect.health?subject=Subscribe to status"
+                    style="color:var(--accent);border:none">status@mediconnect.health</a> &nbsp;·&nbsp; 90-day uptime:
+                <span style="color:var(--green)">99.97%</span></p>
+        </div>
+
+    </div>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="footer-logo">
+                    <div class="footer-logo-mark"><svg viewBox="0 0 24 24">
+                            <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                                fill="none" />
+                        </svg></div>
+                    <div class="footer-logo-text">Medi<span>Connect</span></div>
+                </div>
+                <p class="footer-brand-desc">AI-assisted medical consultations, digital records, and doctor access — in
+                    one secure platform.</p>
+            </div>
+            <div>
+                <div class="footer-col-title">Platform</div>
+                <ul class="footer-links">
+                    <li><a href="how-it-works.html">How it works</a></li>
+                    <li><a href="features.html">Features</a></li>
+                    <li><a href="doctors.html">Doctors</a></li>
+                    <li><a href="index.html">Patient Portal</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Legal</div>
+                <ul class="footer-links">
+                    <li><a href="privacy-policy.html">Privacy Policy</a></li>
+                    <li><a href="terms-of-service.html">Terms of Service</a></li>
+                    <li><a href="baa-agreement.html">BAA Agreement</a></li>
+                    <li><a href="cookie-policy.html">Cookie Policy</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Support</div>
+                <ul class="footer-links">
+                    <li><a href="help-centre.html">Help Centre</a></li>
+                    <li><a href="contact.html">Contact Us</a></li>
+                    <li><a href="status.html" class="active">Status Page</a></li>
+                    <li><a href="security.html">Security</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2025 MediConnect. All rights reserved.</span>
+            <div class="footer-bottom-links">
+                <a href="privacy-policy.html">Privacy</a><a href="terms-of-service.html">Terms</a><a
+                    href="help-centre.html">Accessibility</a>
+            </div>
+        </div>
+    </footer>
+    <script>
+        window.addEventListener('scroll', () => { document.getElementById('mainNav').style.background = window.scrollY > 40 ? 'rgba(13,13,15,0.97)' : 'rgba(13,13,15,0.85)'; }, { passive: true });
+        // Generate uptime bars for 90 days
+        for (let b = 1; b <= 6; b++) {
+            const bar = document.getElementById('bar' + b);
+            for (let i = 0; i < 90; i++) {
+                const seg = document.createElement('div');
+                seg.className = 'uptime-seg ' + (i === 89 ? 'tod' : (Math.random() > 0.003 ? 'up' : 'dn'));
+                bar.appendChild(seg);
+            }
+        }
+        const now = new Date();
+        document.getElementById('lastUpdated').textContent = 'Last updated: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + now.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    </script>
+</body>
+
+</html>

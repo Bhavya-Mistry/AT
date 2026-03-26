@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description"
+        content="MediConnect Features — AI consultation, secure records, verified doctors, and more." />
+    <title>Features — MediConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="shared-page.css" />
+    <style>
+        .features-section {
+            margin: 48px 0;
+        }
+
+        .features-section-label {
+            font-family: var(--mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .features-section h2 {
+            font-family: var(--serif);
+            font-size: 26px;
+            color: var(--text);
+            margin-bottom: 8px;
+            border: none;
+            padding: 0;
+        }
+
+        .features-section>p {
+            color: var(--text-dim);
+            margin-bottom: 24px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .feat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            transition: border-color var(--transition), transform var(--transition);
+        }
+
+        .feat-card:hover {
+            border-color: var(--border-hi);
+            transform: translateY(-2px);
+        }
+
+        .feat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .feat-text h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 5px;
+        }
+
+        .feat-text p {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .compare-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 28px 0;
+        }
+
+        .compare-table th {
+            text-align: left;
+            padding: 10px 16px;
+            font-family: var(--mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-faint);
+            border-bottom: 1px solid var(--border-hi);
+        }
+
+        .compare-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        .compare-table td:first-child {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .compare-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .tick {
+            color: var(--green);
+        }
+
+        .cross {
+            color: var(--red);
+        }
+
+        @media(max-width:640px) {
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="nav" id="mainNav">
+        <a class="nav-logo" href="landing.html">
+            <div class="nav-logo-mark"><svg viewBox="0 0 24 24">
+                    <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                        fill="none" />
+                </svg></div>
+            <div class="nav-logo-text">Medi<span>Connect</span></div>
+        </a>
+        <ul class="nav-links">
+            <li><a href="how-it-works.html">How it works</a></li>
+            <li><a href="features.html" style="color:var(--accent)">Features</a></li>
+            <li><a href="doctors.html">Doctors</a></li>
+            <li><a href="help-centre.html">Help</a></li>
+        </ul>
+        <div style="display:flex;gap:10px">
+            <button class="btn-nav-ghost" onclick="location.href='index.html'">Sign in</button>
+            <button class="btn-nav-primary"
+                onclick="sessionStorage.setItem('authMode','register');location.href='index.html'">Get started</button>
+        </div>
+    </nav>
+
+    <div class="page-hero">
+        <div class="breadcrumb">
+            <a href="landing.html">Home</a><span class="breadcrumb-sep">/</span>
+            <span>Platform</span><span class="breadcrumb-sep">/</span>
+            <span style="color:var(--text-dim)">Features</span>
+        </div>
+        <div class="page-tag">Platform</div>
+        <h1 class="page-title">Everything you need,<br><em>nothing you don't</em></h1>
+        <p class="page-subtitle">MediConnect is purpose-built for healthcare — every feature exists to improve your
+            care, protect your data, or save you time.</p>
+    </div>
+
+    <div class="page-content">
+
+        <div class="features-section">
+            <div class="features-section-label">Core experience</div>
+            <h2>AI-Powered Consultation</h2>
+            <p>The centrepiece of MediConnect — an intelligent intake and triage system that works around the clock.</p>
+            <div class="features-grid">
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:var(--accent-dim)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2">
+                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>Natural language intake</h4>
+                        <p>Describe symptoms conversationally. The AI guides the conversation with clinical precision
+                            and human warmth.</p>
+                    </div>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:rgba(123,167,196,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--blue);fill:none;stroke-width:2">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>Clinical triage</h4>
+                        <p>Risk stratification based on validated protocols. Urgent cases are flagged immediately for
+                            priority review.</p>
+                    </div>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:rgba(158,134,200,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--purple);fill:none;stroke-width:2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 16v-4M12 8h.01" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>Specialty matching</h4>
+                        <p>Automatically routes your case to the most relevant physician specialty for faster, more
+                            accurate care.</p>
+                    </div>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:rgba(114,181,136,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--green);fill:none;stroke-width:2">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>Instant prescriptions</h4>
+                        <p>Doctors can issue prescriptions directly through the platform. Delivered to your portal
+                            within minutes.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="features-section">
+            <div class="features-section-label">Records & files</div>
+            <h2>Your Digital Health Record</h2>
+            <p>A permanent, portable, patient-controlled health record that grows with every interaction.</p>
+            <div class="features-grid">
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:var(--accent-dim)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2">
+                            <path d="M3 3h18M3 9h18M3 15h18M3 21h18" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>Unified timeline</h4>
+                        <p>Every consultation, prescription, and uploaded file in one chronological view.</p>
+                    </div>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:rgba(123,167,196,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--blue);fill:none;stroke-width:2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>File uploads</h4>
+                        <p>Upload JPEG, PNG, WebP, and PDF files up to 25 MB. Lab results, scan images, and previous
+                            prescriptions.</p>
+                    </div>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:rgba(114,181,136,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--green);fill:none;stroke-width:2">
+                            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+                            <polyline points="16 6 12 2 8 6" />
+                            <line x1="12" y1="2" x2="12" y2="15" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>Export & share</h4>
+                        <p>Download your full record as PDF or share specific documents with external providers via
+                            secure link.</p>
+                    </div>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:rgba(158,134,200,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--purple);fill:none;stroke-width:2">
+                            <rect x="1" y="4" width="22" height="16" rx="2" />
+                            <line x1="1" y1="10" x2="23" y2="10" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>Health profile</h4>
+                        <p>Store your medical history, allergies, current medications, and chronic conditions for
+                            instant context in every consultation.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="features-section">
+            <div class="features-section-label">Security & privacy</div>
+            <h2>Built for Healthcare Privacy</h2>
+            <div class="features-grid">
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:var(--accent-dim)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>HIPAA compliant</h4>
+                        <p>Full compliance with US healthcare privacy law. BAA available for covered entities.</p>
+                    </div>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:rgba(123,167,196,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--blue);fill:none;stroke-width:2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" />
+                            <path d="M7 11V7a5 5 0 0110 0v4" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>AES-256 encryption</h4>
+                        <p>Every file, message, and record is encrypted at rest and in transit.</p>
+                    </div>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:rgba(114,181,136,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--green);fill:none;stroke-width:2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>Full audit logging</h4>
+                        <p>Every access to your records is logged. Know exactly who saw what and when.</p>
+                    </div>
+                </div>
+                <div class="feat-card">
+                    <div class="feat-icon" style="background:rgba(224,112,112,0.12)">
+                        <svg viewBox="0 0 24 24"
+                            style="width:20px;height:20px;stroke:var(--red);fill:none;stroke-width:2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                        </svg>
+                    </div>
+                    <div class="feat-text">
+                        <h4>Right to deletion</h4>
+                        <p>Request permanent deletion of your account and all associated data at any time.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2>MediConnect vs. Traditional Care</h2>
+        <table class="compare-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>MediConnect</th>
+                    <th>Traditional clinic</th>
+                    <th>Walk-in urgent care</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Available 24/7</td>
+                    <td class="tick">✓</td>
+                    <td class="cross">✗</td>
+                    <td>Partial</td>
+                </tr>
+                <tr>
+                    <td>Wait time</td>
+                    <td class="tick">Minutes</td>
+                    <td class="cross">Days–weeks</td>
+                    <td>Hours</td>
+                </tr>
+                <tr>
+                    <td>AI pre-triage</td>
+                    <td class="tick">✓</td>
+                    <td class="cross">✗</td>
+                    <td class="cross">✗</td>
+                </tr>
+                <tr>
+                    <td>Digital prescriptions</td>
+                    <td class="tick">✓</td>
+                    <td>Partial</td>
+                    <td>Partial</td>
+                </tr>
+                <tr>
+                    <td>Permanent health record</td>
+                    <td class="tick">✓</td>
+                    <td>Fragmented</td>
+                    <td class="cross">✗</td>
+                </tr>
+                <tr>
+                    <td>HIPAA-compliant</td>
+                    <td class="tick">✓</td>
+                    <td class="tick">✓</td>
+                    <td>Varies</td>
+                </tr>
+                <tr>
+                    <td>File upload &amp; sharing</td>
+                    <td class="tick">✓</td>
+                    <td class="cross">✗</td>
+                    <td class="cross">✗</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div
+            style="margin-top:48px;padding:32px;background:var(--card);border:1px solid var(--border-hi);border-radius:var(--radius-xl);text-align:center">
+            <h3 style="font-family:var(--serif);font-size:22px;color:var(--text);margin-bottom:10px">Experience every
+                feature, free</h3>
+            <p style="color:var(--text-dim);margin-bottom:24px">Create your account in under a minute. No credit card
+                required.</p>
+            <button class="btn-nav-primary" style="padding:12px 28px;font-size:14px"
+                onclick="sessionStorage.setItem('authMode','register');location.href='index.html'">Get started
+                →</button>
+        </div>
+
+    </div>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="footer-logo">
+                    <div class="footer-logo-mark"><svg viewBox="0 0 24 24">
+                            <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                                fill="none" />
+                        </svg></div>
+                    <div class="footer-logo-text">Medi<span>Connect</span></div>
+                </div>
+                <p class="footer-brand-desc">AI-assisted medical consultations, digital records, and doctor access — in
+                    one secure platform.</p>
+            </div>
+            <div>
+                <div class="footer-col-title">Platform</div>
+                <ul class="footer-links">
+                    <li><a href="how-it-works.html">How it works</a></li>
+                    <li><a href="features.html" class="active">Features</a></li>
+                    <li><a href="doctors.html">Doctors</a></li>
+                    <li><a href="index.html">Patient Portal</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Legal</div>
+                <ul class="footer-links">
+                    <li><a href="privacy-policy.html">Privacy Policy</a></li>
+                    <li><a href="terms-of-service.html">Terms of Service</a></li>
+                    <li><a href="baa-agreement.html">BAA Agreement</a></li>
+                    <li><a href="cookie-policy.html">Cookie Policy</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Support</div>
+                <ul class="footer-links">
+                    <li><a href="help-centre.html">Help Centre</a></li>
+                    <li><a href="contact.html">Contact Us</a></li>
+                    <li><a href="status.html">Status Page</a></li>
+                    <li><a href="security.html">Security</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2025 MediConnect. All rights reserved.</span>
+            <div class="footer-bottom-links">
+                <a href="privacy-policy.html">Privacy</a>
+                <a href="terms-of-service.html">Terms</a>
+                <a href="help-centre.html">Accessibility</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            document.getElementById('mainNav').style.background = window.scrollY > 40 ? 'rgba(13,13,15,0.97)' : 'rgba(13,13,15,0.85)';
+        }, { passive: true });
+    </script>
+</body>
+
+</html>
