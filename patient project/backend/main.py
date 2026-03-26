@@ -50,7 +50,7 @@ app.include_router(appointment.router)
 # --- CORS SETTINGS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://patient-project-seven.vercel.app/"],
+    allow_origins=["https://patient-project-seven.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
