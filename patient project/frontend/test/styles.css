@@ -2393,6 +2393,73 @@ textarea.form-input {
 }
 
 /* ═══════════════════════════════════════
+   AI CLINICAL SUMMARY FORMATTING
+   ═══════════════════════════════════════ */
+.summary-card,
+.cv-summary-inline {
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin: 16px 0;
+  width: 100%;
+}
+
+.summary-card-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.summary-row:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Use a nice aligned grid for desktop viewing */
+@media (min-width: 500px) {
+  .summary-row {
+    grid-template-columns: 180px 1fr;
+    gap: 16px;
+    align-items: baseline;
+  }
+}
+
+.summary-key {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: capitalize;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Automatically append a colon to the key */
+.summary-key::after {
+  content: ":";
+}
+
+.summary-val {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* ═══════════════════════════════════════
    UTILITY
    ═══════════════════════════════════════ */
 input[type="file"] {
