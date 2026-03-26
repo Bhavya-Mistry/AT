@@ -716,6 +716,61 @@
             </div>
         </div>
     </div>
+    <!-- File Transcript Modal -->
+    <!-- <div class="modal-overlay" id="fileTextModal" role="dialog" aria-modal="true" aria-label="File transcript viewer">
+        <div class="modal" style="max-width:720px;max-height:85vh;display:flex;flex-direction:column;padding:0">
+            <div style="padding:24px 28px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div>
+                        <div class="modal-title" id="fileTextModalTitle">Transcript</div>
+                        <div class="modal-sub" id="fileTextModalSub" style="margin-bottom:0">Full OCR / transcript text</div>
+                    </div>
+                    <button class="btn btn-ghost" data-action="close-file-text" type="button" style="padding:6px 12px">✕</button>
+                </div>
+            </div>
+            <div id="fileTextModalContent" style="padding:16px;overflow:auto;white-space:pre-wrap;word-break:break-word;max-height:60vh;"></div>
+            <div class="modal-footer" style="justify-content:flex-end;">
+                <button class="btn btn-secondary" data-action="close-file-text" type="button">Close</button>
+            </div>
+        </div>
+    </div> -->
+    <div class="modal-overlay" id="fileTextModal" role="dialog" aria-modal="true" aria-label="File transcript viewer">
+        <div class="modal" style="max-width:720px;max-height:85vh;display:flex;flex-direction:column;padding:0">
+            <div style="padding:24px 28px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div>
+                        <div class="modal-title" id="fileTextModalTitle">Transcript</div>
+                        <div class="modal-sub" id="fileTextModalSub" style="margin-bottom:0">Full OCR / transcript text
+                        </div>
+                    </div>
+                    <button class="btn btn-ghost" data-action="close-file-text" type="button"
+                        style="padding:6px 12px">✕</button>
+                </div>
+            </div>
+            <div id="fileTextModalContent"
+                style="padding:16px;overflow:auto;white-space:pre-wrap;word-break:break-word;max-height:60vh;"></div>
+        </div>
+    </div>
+
+    <!-- Transcript Modal -->
+    <div class="modal-overlay" id="transcriptModal" role="dialog" aria-modal="true" aria-label="Transcript viewer">
+        <div class="modal" style="max-width:680px;max-height:85vh;display:flex;flex-direction:column;padding:0">
+            <div style="padding:24px 28px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div>
+                        <div class="modal-title" id="transcriptModalTitle">Transcript</div>
+                        <div class="modal-sub" style="margin-bottom:0">Full OCR text and transcript</div>
+                    </div>
+                    <button class="btn btn-ghost" data-action="close-transcript" type="button"
+                        style="padding:6px 12px">✕</button>
+                </div>
+            </div>
+            <div style="padding:24px 28px;overflow-y:auto;flex:1;font-family:var(--mono);font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--text);background:var(--background)"
+                id="transcriptModalContent">
+                No transcript content available.
+            </div>
+        </div>
+    </div>
 
 </body>
 

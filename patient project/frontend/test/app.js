@@ -1093,7 +1093,7 @@ const App = (() => {
           <div class="file-icon ${info.cls}" aria-hidden="true">${info.svg}</div>
           <div class="file-name">${esc(f.file_name)}</div>
           <div class="file-meta">${formatDate(f.created_at)} · ${esc(f.file_type || "file")}</div>
-          ${hasTranscript ? `<div class="file-transcript">${esc(f.transcript)}</div>` : ""}
+          ${hasTranscript ? `<div class="file-transcript clickable" data-action="view-transcript" data-transcript="${encodeURIComponent(f.transcript)}" data-file-name="${esc(f.file_name)}">${esc(f.transcript)}</div>` : ""}
         </div>`;
       }).join("")}</div>`;
     } catch (err) {
@@ -1691,7 +1691,7 @@ const App = (() => {
           <div class="file-name">${esc(f.file_name)}</div>
           <div class="file-meta">${formatDate(f.created_at)} · ${esc(f.file_type || "file")}</div>
           ${isProc ? '<div class="file-transcript" style="color:var(--amber);font-style:italic">⟳ Processing…</div>' : ""}
-          ${hasTr ? `<div class="file-transcript">${esc(f.transcript)}</div>` : ""}
+          ${hasTr ? `<div class="file-transcript clickable" data-action="view-transcript" data-transcript="${encodeURIComponent(f.transcript)}" data-file-name="${esc(f.file_name)}">${esc(f.transcript)}</div>` : ""}
         </div>`;
     }).join("");
 
@@ -1838,6 +1838,20 @@ const App = (() => {
     $("#uploadModal").classList.remove("open");
     state.modalFile = null;
   }
+
+  function openFileTextModal(title, text) {
+    const modal = $("#fileTextModal");
+    if (!modal) return;
+    $("#fileTextModalTitle").textContent = title || "File text";
+    $("#fileTextModalSub").textContent = "Full OCR / transcript text";
+    $("#fileTextModalContent").textContent = text || "No text available.";
+    modal.classList.add("open");
+  }
+
+  function closeFileTextModal() {
+    $("#fileTextModal").classList.remove("open");
+  }
+
 
   function handleModalFileSelect(file) {
     if (!file) return;
@@ -2034,6 +2048,8 @@ const App = (() => {
       case "confirm-ok": closeConfirm(true); break;
       case "delete-file": e.stopPropagation(); deleteFile(Number(target.dataset.fileId)); break;
       case "view-file": viewFile(Number(target.dataset.fileId)); break;
+
+
       case "view-file-direct": {
         const link = target.dataset.viewLink;
         if (link) {
@@ -2054,12 +2070,33 @@ const App = (() => {
       case "close-chat-viewer":
         closeChatViewer();
         break;
+      case "close-file-text":
+        closeFileTextModal(); break;
       case "prescribe-from-viewer":
         closeChatViewer();
         // From the viewer, dataset.sessionId is already the real UUID (set by openChatViewer)
         openPrescribeModal(target.dataset.sessionId, target.dataset.patientId);
         break;
       // ✅ Fix: cancel-apt was added to the render HTML but never handled here
+      case "view-transcript": {
+        e.stopPropagation(); // Prevents the file card itself from being clicked
+        const encodedText = target.dataset.transcript;
+        if (!encodedText) {
+          toast("No transcript text available", "info");
+          break;
+        }
+
+        // Decode the safe string back into normal text
+        const transcript = decodeURIComponent(encodedText);
+        const filename = target.dataset.fileName || target.dataset.fileId || "Transcript";
+
+        openFileTextModal(filename, transcript);
+        break;
+      }
+      case "close-transcript": {
+        closeTranscriptModal();
+        break;
+      }
       case "cancel-apt": {
         const aptId = Number(target.dataset.aptId);
         confirm("Cancel Appointment", "Are you sure you want to cancel this appointment?").then(async (ok) => {
@@ -2132,6 +2169,7 @@ const App = (() => {
         else if ($("#chatViewerModal").classList.contains("open")) closeChatViewer();
         else if ($("#prescribeModal").classList.contains("open")) closePrescribeModal();
         else if ($("#uploadModal").classList.contains("open")) closeUploadModal();
+        if ($("#transcriptModal").classList.contains("open")) closeTranscriptModal();
         else if ($("#sidebar").classList.contains("open")) closeSidebar();
       }
     });
@@ -2139,6 +2177,7 @@ const App = (() => {
     $("#uploadModal").addEventListener("click", (e) => { if (e.target === $("#uploadModal")) closeUploadModal(); });
     $("#confirmModal").addEventListener("click", (e) => { if (e.target === $("#confirmModal")) closeConfirm(false); });
     $("#prescribeModal").addEventListener("click", (e) => { if (e.target === $("#prescribeModal")) closePrescribeModal(); });
+    $("#transcriptModal").addEventListener("click", (e) => { if (e.target === $("#transcriptModal")) closeTranscriptModal(); });
     $("#chatViewerModal").addEventListener("click", (e) => {
       if (e.target === $("#chatViewerModal")) closeChatViewer();
     });
@@ -2440,6 +2479,19 @@ const App = (() => {
         };
       });
     }
+  }
+
+  // ═══════════════════════════════════════
+  // TRANSCRIPT MODAL
+  // ═══════════════════════════════════════
+  function showTranscriptModal(transcript, fileName) {
+    $("#transcriptModalTitle").textContent = `Transcript - ${fileName}`;
+    $("#transcriptModalContent").textContent = transcript;
+    $("#transcriptModal").classList.add("open");
+  }
+
+  function closeTranscriptModal() {
+    $("#transcriptModal").classList.remove("open");
   }
 
   // ═══════════════════════════════════════
