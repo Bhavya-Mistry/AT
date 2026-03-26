@@ -666,6 +666,19 @@
 
     <div id="toast-container" role="status" aria-live="polite" aria-label="Notifications"></div>
 
+    <!-- Auth mode from landing page -->
+    <script>
+        (function () {
+            const mode = sessionStorage.getItem("authMode");
+            if (mode) {
+                sessionStorage.removeItem("authMode");
+                if (mode === "register") {
+                    document.getElementById("loginForm").style.display = "none";
+                    document.getElementById("registerForm").style.display = "block";
+                }
+            }
+        })();
+    </script>
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
     <script src="app.js"></script>
     <!-- Chat Viewer Modal (Doctor) -->
