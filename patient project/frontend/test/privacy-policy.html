@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description"
+        content="MediConnect Privacy Policy — How we collect, use, and protect your health information." />
+    <title>Privacy Policy — MediConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="shared-page.css" />
+</head>
+
+<body>
+    <nav class="nav" id="mainNav">
+        <a class="nav-logo" href="landing.html">
+            <div class="nav-logo-mark"><svg viewBox="0 0 24 24">
+                    <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                        fill="none" />
+                </svg></div>
+            <div class="nav-logo-text">Medi<span>Connect</span></div>
+        </a>
+        <ul class="nav-links">
+            <li><a href="how-it-works.html">How it works</a></li>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="doctors.html">Doctors</a></li>
+            <li><a href="help-centre.html">Help</a></li>
+        </ul>
+        <div style="display:flex;gap:10px">
+            <button class="btn-nav-ghost" onclick="location.href='index.html'">Sign in</button>
+            <button class="btn-nav-primary"
+                onclick="sessionStorage.setItem('authMode','register');location.href='index.html'">Get started</button>
+        </div>
+    </nav>
+
+    <div class="page-hero">
+        <div class="breadcrumb">
+            <a href="landing.html">Home</a><span class="breadcrumb-sep">/</span>
+            <span>Legal</span><span class="breadcrumb-sep">/</span>
+            <span style="color:var(--text-dim)">Privacy Policy</span>
+        </div>
+        <div class="page-tag">Legal</div>
+        <h1 class="page-title">Privacy <em>Policy</em></h1>
+        <p class="page-subtitle">We believe your health data is yours. This policy explains exactly how we handle it —
+            in plain language, without legal sleight of hand.</p>
+        <div class="page-meta">
+            <span>Effective date: 1 January 2025</span>
+            <span>Last updated: 1 March 2025</span>
+        </div>
+    </div>
+
+    <div class="page-content">
+        <div class="toc">
+            <div class="toc-title">Table of Contents</div>
+            <ol>
+                <li><a href="#collect">Information we collect</a></li>
+                <li><a href="#use">How we use your information</a></li>
+                <li><a href="#share">When we share your information</a></li>
+                <li><a href="#hipaa">HIPAA and healthcare privacy</a></li>
+                <li><a href="#retention">Data retention</a></li>
+                <li><a href="#rights">Your rights</a></li>
+                <li><a href="#security">Security measures</a></li>
+                <li><a href="#cookies">Cookies</a></li>
+                <li><a href="#children">Children's privacy</a></li>
+                <li><a href="#contact">Contact us</a></li>
+            </ol>
+        </div>
+
+        <div class="highlight-box">
+            <p><strong>Plain-English summary:</strong> We collect only what's needed to provide you care. We never sell
+                your data. All health records are encrypted. You can request deletion at any time. Doctors only see your
+                records when you initiate a consultation with them.</p>
+        </div>
+
+        <h2 id="collect">1. Information we collect</h2>
+        <h3>Account information</h3>
+        <p>When you create an account, we collect your email address and a hashed password (we never store your password
+            in plain text). You may also provide your name, date of birth, and contact details.</p>
+        <h3>Health information</h3>
+        <p>Any information you provide during AI consultations or in your health profile, including symptoms, medical
+            history, medications, allergies, and conditions, is stored as Protected Health Information (PHI) under
+            HIPAA.</p>
+        <h3>Uploaded files</h3>
+        <p>Medical files you upload — lab results, scan images, prescriptions — are stored encrypted in our secure cloud
+            infrastructure. We do not process or analyse these files beyond facilitating your care.</p>
+        <h3>Usage data</h3>
+        <p>We collect standard server logs including IP address, browser type, and pages visited. This data is used for
+            security monitoring and platform improvement only. It is never linked to your health records.</p>
+
+        <h2 id="use">2. How we use your information</h2>
+        <p>Your information is used exclusively to:</p>
+        <ul>
+            <li>Provide AI consultation and triage services</li>
+            <li>Connect you with appropriate physicians</li>
+            <li>Maintain your health record and consultation history</li>
+            <li>Send important service communications (appointment reminders, security alerts)</li>
+            <li>Improve our AI model's clinical accuracy through anonymised, aggregated analysis</li>
+        </ul>
+        <p>We <strong>do not</strong> use your data for advertising, marketing profiling, or sale to third parties.</p>
+
+        <h2 id="share">3. When we share your information</h2>
+        <p>Your health information is shared only in these specific circumstances:</p>
+        <ul>
+            <li><strong>With your treating physician</strong> — when you initiate a consultation, the assigned doctor
+                can access your health profile and the consultation history</li>
+            <li><strong>With cloud infrastructure providers</strong> — encrypted data stored with HIPAA-compliant cloud
+                providers under BAAs (see below)</li>
+            <li><strong>When legally required</strong> — we will comply with valid legal process, and will notify you
+                where permitted by law</li>
+            <li><strong>With your explicit consent</strong> — if you use our secure-share feature to send records to an
+                external provider</li>
+        </ul>
+        <div class="warn-box">
+            <p>We will never sell, rent, or trade your health information to insurers, employers, pharmaceutical
+                companies, or data brokers — ever.</p>
+        </div>
+
+        <h2 id="hipaa">4. HIPAA and healthcare privacy</h2>
+        <p>MediConnect is a Covered Entity under the Health Insurance Portability and Accountability Act (HIPAA). This
+            means:</p>
+        <ul>
+            <li>Your health data is treated as Protected Health Information (PHI)</li>
+            <li>All employees with PHI access complete mandatory HIPAA training</li>
+            <li>We maintain Business Associate Agreements (BAAs) with all service providers who handle PHI</li>
+            <li>We maintain a Notice of Privacy Practices as required by HIPAA</li>
+            <li>You have the right to an accounting of disclosures of your PHI</li>
+        </ul>
+        <p>Enterprise customers may request a <a href="baa-agreement.html">BAA Agreement</a> to use MediConnect as a
+            Business Associate.</p>
+
+        <h2 id="retention">5. Data retention</h2>
+        <p>We retain your health records for a minimum of 7 years from the date of creation, as required by medical
+            record-keeping laws in most jurisdictions. After this period, records are permanently deleted unless you
+            request deletion sooner (subject to legal minimums).</p>
+        <p>Usage logs are retained for 90 days, after which they are permanently purged.</p>
+
+        <h2 id="rights">6. Your rights</h2>
+        <p>Depending on your jurisdiction, you have the right to:</p>
+        <ul>
+            <li><strong>Access</strong> — request a copy of all personal data we hold about you</li>
+            <li><strong>Rectification</strong> — correct inaccurate personal data</li>
+            <li><strong>Erasure</strong> — request deletion of your account and associated data (subject to legal
+                minimums)</li>
+            <li><strong>Portability</strong> — receive your health records in a machine-readable format</li>
+            <li><strong>Restriction</strong> — limit how we process your data in certain circumstances</li>
+            <li><strong>Objection</strong> — object to certain types of processing</li>
+        </ul>
+        <p>To exercise any of these rights, contact us at <a
+                href="mailto:privacy@mediconnect.health">privacy@mediconnect.health</a> or use the data request form in
+            your account settings.</p>
+
+        <h2 id="security">7. Security measures</h2>
+        <p>We protect your data with multiple layers of security. See our <a href="security.html">Security page</a> for
+            the complete technical overview. In summary:</p>
+        <ul>
+            <li>AES-256 encryption at rest for all stored data</li>
+            <li>TLS 1.3 encryption for all data in transit</li>
+            <li>Zero-knowledge architecture — our support staff cannot read your messages or health records</li>
+            <li>Full access audit logging visible to you</li>
+            <li>Annual third-party penetration testing</li>
+            <li>SOC 2 Type II certified infrastructure</li>
+        </ul>
+
+        <h2 id="cookies">8. Cookies</h2>
+        <p>We use essential cookies to maintain your session and prevent fraud. We do not use third-party advertising or
+            tracking cookies. See our <a href="cookie-policy.html">Cookie Policy</a> for full details.</p>
+
+        <h2 id="children">9. Children's privacy</h2>
+        <p>MediConnect is not directed at children under 13. If you believe a child under 13 has created an account,
+            contact us immediately at <a href="mailto:privacy@mediconnect.health">privacy@mediconnect.health</a> and we
+            will delete the account. For patients aged 13–17, parental consent is required during account creation.</p>
+
+        <h2 id="contact">10. Contact us</h2>
+        <p>For privacy-related questions, data requests, or to report a concern:</p>
+        <ul>
+            <li>Email: <a href="mailto:privacy@mediconnect.health">privacy@mediconnect.health</a></li>
+            <li>Post: MediConnect Privacy Office, 100 Health Plaza, San Francisco, CA 94102</li>
+            <li>Response time: We will respond to all privacy requests within 30 days</li>
+        </ul>
+        <p>If you are unsatisfied with our response, you have the right to lodge a complaint with the relevant data
+            protection authority in your jurisdiction.</p>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="footer-logo">
+                    <div class="footer-logo-mark"><svg viewBox="0 0 24 24">
+                            <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                                fill="none" />
+                        </svg></div>
+                    <div class="footer-logo-text">Medi<span>Connect</span></div>
+                </div>
+                <p class="footer-brand-desc">AI-assisted medical consultations, digital records, and doctor access — in
+                    one secure platform.</p>
+            </div>
+            <div>
+                <div class="footer-col-title">Platform</div>
+                <ul class="footer-links">
+                    <li><a href="how-it-works.html">How it works</a></li>
+                    <li><a href="features.html">Features</a></li>
+                    <li><a href="doctors.html">Doctors</a></li>
+                    <li><a href="index.html">Patient Portal</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Legal</div>
+                <ul class="footer-links">
+                    <li><a href="privacy-policy.html" class="active">Privacy Policy</a></li>
+                    <li><a href="terms-of-service.html">Terms of Service</a></li>
+                    <li><a href="baa-agreement.html">BAA Agreement</a></li>
+                    <li><a href="cookie-policy.html">Cookie Policy</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Support</div>
+                <ul class="footer-links">
+                    <li><a href="help-centre.html">Help Centre</a></li>
+                    <li><a href="contact.html">Contact Us</a></li>
+                    <li><a href="status.html">Status Page</a></li>
+                    <li><a href="security.html">Security</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2025 MediConnect. All rights reserved.</span>
+            <div class="footer-bottom-links">
+                <a href="privacy-policy.html">Privacy</a><a href="terms-of-service.html">Terms</a><a
+                    href="help-centre.html">Accessibility</a>
+            </div>
+        </div>
+    </footer>
+    <script>window.addEventListener('scroll', () => { document.getElementById('mainNav').style.background = window.scrollY > 40 ? 'rgba(13,13,15,0.97)' : 'rgba(13,13,15,0.85)'; }, { passive: true });</script>
+</body>
+
+</html>
