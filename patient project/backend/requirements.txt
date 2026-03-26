@@ -1,4 +1,4 @@
-# Add these to requirement.txt
+fastapi
 google-auth==2.29.0
 google-auth-oauthlib==1.2.0
 google-api-python-client==2.126.0
@@ -11,4 +11,3 @@ google-generativeai==0.7.2
 reportlab
 apscheduler
 uvicorn
-fastapi
