@@ -10,4 +10,10 @@ reportlab==4.2.0
 google-generativeai==0.7.2
 reportlab
 apscheduler
+sqlalchemy
 uvicorn
+psycopg2
+pydantic[email]
+python-jose
+python-multipart
+google-genai
