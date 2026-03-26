@@ -10,6 +10,7 @@ from db import get_db
 from security import get_current_user, get_current_doctor
 from datetime import timedelta
 from sqlalchemy import and_
+from datetime import datetime, timezone
 
 
 router = APIRouter(prefix="/appointments", tags=["Appointments & Scheduling"])
@@ -185,3 +186,22 @@ def cancel_appointment(
     db.refresh(appointment)
 
     return appointment
+
+
+def mark_past_appointments_completed(db: Session):
+    """Called by the scheduler. Marks any SCHEDULED appointment whose
+    scheduled_time is in the past as COMPLETED."""
+    now = datetime.now(timezone.utc)
+    updated = (
+        db.query(models.Appointment)
+        .filter(
+            models.Appointment.status == models.AppointmentStatus.SCHEDULED,
+            models.Appointment.scheduled_time < now,
+        )
+        .all()
+    )
+    for appt in updated:
+        appt.status = models.AppointmentStatus.COMPLETED
+    if updated:
+        db.commit()
+    db.close()
