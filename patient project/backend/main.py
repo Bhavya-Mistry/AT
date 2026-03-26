@@ -1,5 +1,6 @@
 # --- FIX FOR PYTHON 3.12+ / BCRYPT ISSUES ---
 import bcrypt
+
 bcrypt.__about__ = type("about", (object,), {"__version__": bcrypt.__version__})
 # --------------------------------------------
 from fastapi.staticfiles import StaticFiles
@@ -19,19 +20,23 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
 
+
 # ── Scheduler setup ───────────────────────────────────────────────────────────
 def run_completion_job():
     db = SessionLocal()
     mark_past_appointments_completed(db)
 
+
 scheduler = BackgroundScheduler()
 scheduler.add_job(run_completion_job, "interval", minutes=1)  # runs every 5 minutes
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     scheduler.start()
     yield
     scheduler.shutdown()
+
 
 app = FastAPI(title="Patient Portal API", lifespan=lifespan)
 
@@ -45,7 +50,7 @@ app.include_router(appointment.router)
 # --- CORS SETTINGS ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "http://127.0.0.1:8000"],
+    allow_origins=["https://patient-project-seven.vercel.app/"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
