@@ -573,16 +573,16 @@ const App = (() => {
       if (filesRes.status === "fulfilled" && filesRes.value.ok) state.files = await filesRes.value.json();
 
       // Session count
-      $("#statPatientSessions").textContent = state.sessions.length;
+      document.getElementById("statPatientSessions").textContent = state.sessions.length;
 
       // File count
-      $("#statPatientFiles").textContent = state.files.length;
+      document.getElementById("statPatientFiles").textContent = state.files.length;
 
       // Count prescriptions (files that start with "Rx:")
       const rxCount = state.files.filter((f) =>
         f.file_name?.startsWith("Rx:") || f.file_type === "pdf"
       ).length;
-      $("#statPatientRx").textContent = rxCount || "\u2014";
+      document.getElementById("statPatientRx").textContent = rxCount || "\u2014";
 
       // Latest priority score (from most recent session with a score)
       const withScore = state.sessions.filter((s) => s.summary?.priority_score);
@@ -592,9 +592,9 @@ const App = (() => {
           new Date(b.created_at || 0) - new Date(a.created_at || 0)
         );
         const latest = sorted[0].summary.priority_score;
-        $("#statPatientPriority").textContent = latest;
+        document.getElementById("statPatientPriority").textContent = latest;
       } else {
-        $("#statPatientPriority").textContent = "\u2014";
+        document.getElementById("statPatientPriority").textContent = "\u2014";
       }
 
       renderRecentChats(state.sessions.slice(0, 4));
@@ -611,10 +611,10 @@ const App = (() => {
       state.patients = await res.json();
 
       // Patient count
-      $("#statDocPatients").textContent = state.patients.length;
+      document.getElementById("statDocPatients").textContent = state.patients.length;
 
       // Show patients badge in sidebar
-      const badge = $("#patientsBadge");
+      const badge = document.getElementById("patientsBadge");
       if (state.patients.length) {
         badge.textContent = state.patients.length;
         badge.style.display = "";
@@ -706,9 +706,8 @@ const App = (() => {
         }
       });
 
-      // 3. CALCULATE TODAY'S APPOINTMENTS (FIXED)
-      // 3. CALCULATE TODAY'S APPOINTMENTS (FIXED)
-      const currentDate = new Date(); // Use a new name here
+      // 3. CALCULATE TODAY'S PENDING APPOINTMENTS
+      const currentDate = new Date();
       const todayYear = currentDate.getFullYear();
       const todayMonth = currentDate.getMonth();
       const todayDate = currentDate.getDate();
@@ -726,18 +725,45 @@ const App = (() => {
           d.getMonth() === todayMonth &&
           d.getDate() === todayDate;
 
+        if (!isSameDay) return false; // Skip if not today
+
         // Force lowercase to catch 'Scheduled', 'SCHEDULED', etc.
         const statusVal = String(a.status?.value || a.status || 'scheduled').toLowerCase();
 
-        // Count it if it's today AND it hasn't been cancelled
-        return isSameDay && statusVal !== "cancelled";
+        console.log(" APPOINTMENT DEBUG:", {
+          time: a.scheduled_time,
+          status: a.status,
+          statusVal: statusVal,
+          isToday: isSameDay
+        });
+
+        // Check if appointment time is in the past (likely completed)
+        const appointmentTime = new Date(a.scheduled_time).getTime();
+        const currentTime = new Date().getTime();
+        const isPast = appointmentTime < currentTime;
+
+        // Count it if it's today, scheduled status, and not in the past
+        return isSameDay && statusVal === "scheduled" && !isPast;
       }).length;
 
+      console.log(" DEBUG: Today's appointments count:", todayCount);
+      console.log(" DEBUG: Total appointments:", appts.length);
+
       // Update doctor stat cards
-      $("#statDocSessions").textContent = totalSessions || "\u2014";
-      $("#statDocPending").textContent = pendingCount || "0";
-      $("#statDocAppointments").textContent = todayCount || "0";
-      $("#statDocPriority").textContent = priorityCount
+      const statSessions = document.getElementById("statDocSessions");
+      const statPending = document.getElementById("statDocPending");
+      const statAppointments = document.getElementById("statDocAppointments");
+      const statPriority = document.getElementById("statDocPriority");
+
+      if (statSessions) statSessions.textContent = totalSessions || "\u2014";
+      if (statPending) statPending.textContent = pendingCount || "0";
+      if (statAppointments) {
+        statAppointments.textContent = todayCount || "0";
+        console.log("🔍 DEBUG: UI Updated - statDocAppointments now shows:", statAppointments.textContent);
+      } else {
+        console.log("❌ ERROR: statDocAppointments element not found!");
+      }
+      if (statPriority) statPriority.textContent = priorityCount
         ? (totalPriority / priorityCount).toFixed(1)
         : "\u2014";
 
