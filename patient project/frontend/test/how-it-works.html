@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description"
+        content="MediConnect — How It Works. AI-assisted medical consultations in three simple steps." />
+    <title>How It Works — MediConnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="shared-page.css" />
+    <style>
+        .steps-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2px;
+            margin: 40px 0;
+        }
+
+        .step-row {
+            display: grid;
+            grid-template-columns: 64px 1fr;
+            gap: 32px;
+            align-items: start;
+            padding: 32px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .step-row:last-child {
+            border-bottom: none;
+        }
+
+        .step-num {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--mono);
+            font-size: 13px;
+            color: var(--accent);
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .step-body h3 {
+            font-family: var(--serif);
+            font-size: 22px;
+            color: var(--text);
+            margin: 0 0 10px;
+        }
+
+        .step-body p {
+            color: var(--text-dim);
+            margin: 0;
+        }
+
+        .step-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 100px;
+            background: var(--card);
+            border: 1px solid var(--border-hi);
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-faint);
+            margin-bottom: 10px;
+        }
+
+        .feature-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 40px 0;
+        }
+
+        .feature-mini {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+        }
+
+        .feature-mini-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 14px;
+        }
+
+        .feature-mini h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        .feature-mini p {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .flow-connector {
+            text-align: center;
+            padding: 8px 0;
+            color: var(--text-faint);
+            font-size: 20px;
+        }
+
+        @media(max-width:640px) {
+            .feature-row {
+                grid-template-columns: 1fr;
+            }
+
+            .step-row {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="nav" id="mainNav">
+        <a class="nav-logo" href="landing.html">
+            <div class="nav-logo-mark">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                        fill="none" />
+                </svg>
+            </div>
+            <div class="nav-logo-text">Medi<span>Connect</span></div>
+        </a>
+        <ul class="nav-links">
+            <li><a href="how-it-works.html" style="color:var(--accent)">How it works</a></li>
+            <li><a href="features.html">Features</a></li>
+            <li><a href="doctors.html">Doctors</a></li>
+            <li><a href="help-centre.html">Help</a></li>
+        </ul>
+        <div style="display:flex;gap:10px">
+            <button class="btn-nav-ghost" onclick="location.href='index.html'">Sign in</button>
+            <button class="btn-nav-primary"
+                onclick="sessionStorage.setItem('authMode','register');location.href='index.html'">Get started</button>
+        </div>
+    </nav>
+
+    <div class="page-hero">
+        <div class="breadcrumb">
+            <a href="landing.html">Home</a><span class="breadcrumb-sep">/</span>
+            <span>Platform</span><span class="breadcrumb-sep">/</span>
+            <span style="color:var(--text-dim)">How it works</span>
+        </div>
+        <div class="page-tag">Platform</div>
+        <h1 class="page-title">Healthcare that <em>actually</em><br>works for you</h1>
+        <p class="page-subtitle">From first symptom to prescription in minutes. MediConnect combines AI triage, verified
+            doctors, and secure records into one seamless experience.</p>
+    </div>
+
+    <div class="page-content">
+
+        <div class="toc">
+            <div class="toc-title">On this page</div>
+            <ol class="toc">
+                <li><a href="#process">The three-step process</a></li>
+                <li><a href="#ai">How our AI works</a></li>
+                <li><a href="#doctors">Doctor verification</a></li>
+                <li><a href="#records">Your health records</a></li>
+                <li><a href="#security">Privacy & security</a></li>
+            </ol>
+        </div>
+
+        <h2 id="process">The three-step process</h2>
+        <p>MediConnect is designed around one principle: getting you the right care, fast. No waiting rooms, no phone
+            trees, no uncertainty.</p>
+
+        <div class="steps-grid">
+            <div class="step-row">
+                <div class="step-num">01</div>
+                <div class="step-body">
+                    <div class="step-tag">Instant · Free</div>
+                    <h3>Describe your symptoms</h3>
+                    <p>Open the AI consultation from your Patient Portal and describe how you're feeling in plain
+                        language. Our AI — trained on clinical guidelines and medical literature — asks follow-up
+                        questions to understand your situation fully. No medical jargon required.</p>
+                </div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">02</div>
+                <div class="step-body">
+                    <div class="step-tag">Within minutes</div>
+                    <h3>Get triaged and matched</h3>
+                    <p>The AI generates a preliminary assessment and, where appropriate, connects you to a verified
+                        doctor in the relevant specialty. You can upload medical files — lab results, scan images,
+                        previous prescriptions — directly in the chat for the doctor to review.</p>
+                </div>
+            </div>
+            <div class="step-row">
+                <div class="step-num">03</div>
+                <div class="step-body">
+                    <div class="step-tag">Secure · Permanent</div>
+                    <h3>Receive care and keep your records</h3>
+                    <p>Your doctor reviews the AI's assessment, asks any additional questions, and issues a prescription
+                        or referral directly through the platform. Everything — the consultation, prescriptions, and
+                        uploaded files — is stored permanently in your encrypted health record.</p>
+                </div>
+            </div>
+        </div>
+
+        <h2 id="ai">How our AI works</h2>
+        <p>The MediConnect AI assistant is a <strong>clinical decision-support tool</strong>, not a replacement for
+            medical expertise. It does three things exceptionally well:</p>
+        <ul>
+            <li><strong>Symptom collection</strong> — structured, empathetic intake that doesn't miss important details
+            </li>
+            <li><strong>Preliminary triage</strong> — risk stratification based on clinical protocols, flagging urgent
+                cases immediately</li>
+            <li><strong>Context packaging</strong> — preparing a concise case summary for the reviewing physician,
+                saving them time and improving accuracy</li>
+        </ul>
+        <div class="highlight-box">
+            <p><strong>Important:</strong> The AI never issues diagnoses or prescriptions. All clinical decisions are
+                made by licensed physicians. The AI is your advocate — making sure the doctor has everything they need
+                to help you effectively.</p>
+        </div>
+
+        <div class="feature-row">
+            <div class="feature-mini">
+                <div class="feature-mini-icon" style="background:var(--accent-dim)">
+                    <svg viewBox="0 0 24 24"
+                        style="width:18px;height:18px;stroke:var(--accent);fill:none;stroke-width:2">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                    </svg>
+                </div>
+                <h4>Natural language</h4>
+                <p>Talk to the AI like you'd talk to a nurse. No forms, no codes.</p>
+            </div>
+            <div class="feature-mini">
+                <div class="feature-mini-icon" style="background:rgba(123,167,196,0.12)">
+                    <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--blue);fill:none;stroke-width:2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                </div>
+                <h4>Clinical protocols</h4>
+                <p>Triage logic grounded in recognised medical guidelines.</p>
+            </div>
+            <div class="feature-mini">
+                <div class="feature-mini-icon" style="background:rgba(114,181,136,0.12)">
+                    <svg viewBox="0 0 24 24"
+                        style="width:18px;height:18px;stroke:var(--green);fill:none;stroke-width:2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                </div>
+                <h4>Privacy-first</h4>
+                <p>Your conversation is encrypted end-to-end. Always.</p>
+            </div>
+        </div>
+
+        <h2 id="doctors">Doctor verification</h2>
+        <p>Every physician on MediConnect goes through a rigorous onboarding process before seeing a single patient:</p>
+        <ul>
+            <li>Verification of medical licence with the issuing authority</li>
+            <li>Background and malpractice history check</li>
+            <li>Specialty credential review</li>
+            <li>Platform training and assessment</li>
+            <li>Ongoing peer review and patient satisfaction monitoring</li>
+        </ul>
+        <p>Doctors are rated after every consultation. Those who consistently underperform are reviewed and, if
+            necessary, removed from the platform. Quality of care is not negotiable.</p>
+
+        <h2 id="records">Your health records</h2>
+        <p>Everything in MediConnect builds a single, longitudinal health record that belongs to <strong>you</strong>.
+            At any time you can:</p>
+        <ul>
+            <li>Download your complete medical history as a PDF</li>
+            <li>Share specific records with external providers via a secure link</li>
+            <li>Request permanent deletion of your account and all associated data</li>
+            <li>See a full audit log of every access event on your records</li>
+        </ul>
+
+        <h2 id="security">Privacy & security</h2>
+        <p>MediConnect is built to healthcare's highest standards. See our <a href="security.html">Security</a> page for
+            full details, and our <a href="privacy-policy.html">Privacy Policy</a> for information on how we handle your
+            data.</p>
+
+        <div class="info-box">
+            <p>📋 Healthcare providers and enterprises can request a <a href="baa-agreement.html"
+                    style="color:var(--blue);border-bottom:1px solid rgba(123,167,196,0.3)">Business Associate Agreement
+                    (BAA)</a> to use MediConnect in a HIPAA-compliant capacity.</p>
+        </div>
+
+        <div
+            style="margin-top:48px;padding:32px;background:var(--card);border:1px solid var(--border-hi);border-radius:var(--radius-xl);text-align:center">
+            <h3 style="font-family:var(--serif);font-size:22px;color:var(--text);margin-bottom:10px">Ready to get
+                started?</h3>
+            <p style="color:var(--text-dim);margin-bottom:24px">Your first consultation is free. No credit card
+                required.</p>
+            <button class="btn-nav-primary" style="padding:12px 28px;font-size:14px"
+                onclick="sessionStorage.setItem('authMode','register');location.href='index.html'">Create free account
+                →</button>
+        </div>
+
+    </div>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="footer-logo">
+                    <div class="footer-logo-mark"><svg viewBox="0 0 24 24">
+                            <path d="M12 2L12 22M7 12L17 12" stroke="#0D0D0F" stroke-width="2.5" stroke-linecap="round"
+                                fill="none" />
+                        </svg></div>
+                    <div class="footer-logo-text">Medi<span>Connect</span></div>
+                </div>
+                <p class="footer-brand-desc">AI-assisted medical consultations, digital records, and doctor access — in
+                    one secure platform.</p>
+            </div>
+            <div>
+                <div class="footer-col-title">Platform</div>
+                <ul class="footer-links">
+                    <li><a href="how-it-works.html" class="active">How it works</a></li>
+                    <li><a href="features.html">Features</a></li>
+                    <li><a href="doctors.html">Doctors</a></li>
+                    <li><a href="index.html">Patient Portal</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Legal</div>
+                <ul class="footer-links">
+                    <li><a href="privacy-policy.html">Privacy Policy</a></li>
+                    <li><a href="terms-of-service.html">Terms of Service</a></li>
+                    <li><a href="baa-agreement.html">BAA Agreement</a></li>
+                    <li><a href="cookie-policy.html">Cookie Policy</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Support</div>
+                <ul class="footer-links">
+                    <li><a href="help-centre.html">Help Centre</a></li>
+                    <li><a href="contact.html">Contact Us</a></li>
+                    <li><a href="status.html">Status Page</a></li>
+                    <li><a href="security.html">Security</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2025 MediConnect. All rights reserved.</span>
+            <div class="footer-bottom-links">
+                <a href="privacy-policy.html">Privacy</a>
+                <a href="terms-of-service.html">Terms</a>
+                <a href="help-centre.html">Accessibility</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            document.getElementById('mainNav').style.background = window.scrollY > 40 ? 'rgba(13,13,15,0.97)' : 'rgba(13,13,15,0.85)';
+        }, { passive: true });
+    </script>
+</body>
+
+</html>
