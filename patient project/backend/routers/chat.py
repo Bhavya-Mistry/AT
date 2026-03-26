@@ -140,6 +140,14 @@ def process_chat_upload_in_background(
                 current_messages.pop()
 
             current_messages.append(file_message)
+            try:
+                ai_reply = ai_service.get_ai_response(
+                    current_messages,
+                    "I have just uploaded the file above. Please review the extracted details or visual analysis, acknowledge them, and ask me any necessary follow-up questions to continue our consultation."
+                )
+                current_messages.append({"sender": "ai", "text": ai_reply})
+            except Exception as ai_err:
+                print(f"AI Failed to reply to uploaded file: {ai_err}")
             history.messages = current_messages
             flag_modified(history, "messages")
             db.commit()
