@@ -1,11 +1,6 @@
 # backend/routers/doctor.py
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    BackgroundTasks,
-)  # <-- Add BackgroundTasks
-from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from typing import List
 from datetime import datetime
@@ -15,7 +10,7 @@ import models
 import schemas
 import pdf_generation_service
 import drive_service
-import email_service  # <-- Add this import
+import email_service
 from db import get_db
 from security import get_current_doctor
 import os
@@ -23,63 +18,34 @@ import os
 router = APIRouter(
     prefix="/doctor",
     tags=["Doctor Dashboard"],
-    dependencies=[
-        Depends(get_current_doctor)
-    ],  # <-- Protects EVERY route in this file!
+    dependencies=[Depends(get_current_doctor)],
 )
 
 
 @router.get("/patients/", response_model=List[schemas.UserRead])
 def get_all_patients(
-    skip: int = 0,  # <-- Start at index 0 by default
-    limit: int = 50,  # <-- Only fetch 50 patients at a time by default
+    skip: int = 0,
+    limit: int = 50,
     db: Session = Depends(get_db),
 ):
-    """Fetches a paginated list of all patients."""
     patients = (
         db.query(models.User)
         .filter(models.User.role == models.UserRole.PATIENT)
-        .offset(skip)  # Skip the first N records
-        .limit(limit)  # Only take the next N records
+        .offset(skip)
+        .limit(limit)
         .all()
     )
-
     return patients
-
-
-# @router.get(
-#     "/patients/{patient_id}/summaries", response_model=List[schemas.ChatHistoryRead]
-# )
-# def get_patient_summaries(patient_id: int, db: Session = Depends(get_db)):
-#     """Fetches chat sessions and SORTS them by priority score."""
-#     sessions = (
-#         db.query(models.ChatHistory)
-#         .filter(models.ChatHistory.patient_id == patient_id)
-#         .all()
-#     )
-
-#     def get_priority(session):
-#         if session.summary and isinstance(session.summary, dict):
-#             return session.summary.get("priority_score", 0)
-#         return 0
-
-#     sessions.sort(key=get_priority, reverse=True)
-#     return sessions
 
 
 @router.get("/patients/{patient_id}/summaries")
 def get_patient_timeline(
     patient_id: int,
-    skip: int = 0,  # <-- Add pagination params here too
+    skip: int = 0,
     limit: int = 20,
     db: Session = Depends(get_db),
     current_doctor: schemas.TokenData = Depends(get_current_doctor),
 ):
-    """Fetches a paginated, chronological timeline of AI chat summaries and uploaded files."""
-
-    # (Assuming you added the HIPAA Audit Log here from our last step!)
-    import audit_service
-
     audit_service.log_action(
         db=db,
         actor_id=current_doctor.user_id,
@@ -87,14 +53,11 @@ def get_patient_timeline(
         action="VIEWED_PATIENT_TIMELINE",
     )
 
-    # 1. Fetch all Chat Sessions
     sessions = (
         db.query(models.ChatHistory)
         .filter(models.ChatHistory.patient_id == patient_id)
         .all()
     )
-
-    # 2. Fetch all Medical Files
     files = (
         db.query(models.MedicalMedia)
         .filter(models.MedicalMedia.patient_id == patient_id)
@@ -103,7 +66,6 @@ def get_patient_timeline(
 
     timeline = []
 
-    # 3. Format Chat Summaries
     for session in sessions:
         if session.summary:
             priority = (
@@ -122,7 +84,6 @@ def get_patient_timeline(
                 }
             )
 
-    # 4. Format Medical Files
     for f in files:
         timeline.append(
             {
@@ -139,23 +100,17 @@ def get_patient_timeline(
             }
         )
 
-    # 5. Sort chronologically (Newest first)
     timeline.sort(key=lambda x: x["created_at"], reverse=True)
-
-    # 6. --- NEW: APPLY PAGINATION VIA PYTHON SLICING ---
-    paginated_timeline = timeline[skip : skip + limit]
-
-    return paginated_timeline
+    return timeline[skip : skip + limit]
 
 
 @router.get("/patients/{patient_id}/chat/{chat_id}")
 def get_patient_chat_by_id(
     patient_id: int,
-    chat_id: int,  # This is the ChatHistory DB row id (from "chat_2" -> 2)
+    chat_id: int,
     db: Session = Depends(get_db),
     current_doctor: schemas.TokenData = Depends(get_current_doctor),
 ):
-    """Returns the full message history for a specific chat session by DB row id."""
     audit_service.log_action(
         db=db,
         actor_id=current_doctor.user_id,
@@ -198,12 +153,10 @@ def create_prescription(
     if not history_record:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Mark the session summary as reviewed so the frontend clears it from the "Pending" count
+    # Mark session as reviewed
     if history_record.summary and isinstance(history_record.summary, dict):
         history_record.summary["reviewed"] = True
         flag_modified(history_record, "summary")
-        # We don't need a separate db.commit() here because the function
-        # commits later when saving the prescription file.
 
     patient = (
         db.query(models.User)
@@ -219,7 +172,7 @@ def create_prescription(
     filename = f"Prescription_{request.session_id}_{uuid.uuid4().hex[:6]}.pdf"
     file_path = pdf_generation_service.generate_medical_report(
         patient_name=patient_name,
-        date_str=datetime.now().strftime("%Y-%m-%d"),
+        date_str=datetime.now().strftime("%d %B %Y"),
         summary_json=history_record.summary,
         doctor_notes=request.doctor_notes,
         filename=filename,
@@ -228,9 +181,6 @@ def create_prescription(
 
     # Upload to Drive
     drive_data = drive_service.upload_to_drive(file_path, filename, "application/pdf")
-
-    if os.path.exists(file_path):
-        os.remove(file_path)
 
     # Save to Database
     new_media = models.MedicalMedia(
@@ -244,11 +194,10 @@ def create_prescription(
     db.add(new_media)
     db.commit()
 
-    # new_media.drive_view_link = f"http://127.0.0.1:8000/media/view/{new_media.id}"
     new_media.drive_view_link = f"/media/view/{new_media.id}"
     db.commit()
 
-    # Inject message into chat
+    # Inject follow-up message into chat
     follow_up_msg = (
         f"*** AUTOMATED SYSTEM MESSAGE ***\n"
         f"Dr. Smith has issued a prescription. It is now available in your 'My Files' tab.\n"
@@ -256,30 +205,27 @@ def create_prescription(
     )
     messages = history_record.messages if history_record.messages else []
     messages.append({"sender": "ai", "text": follow_up_msg})
-
     history_record.messages = messages
     flag_modified(history_record, "messages")
     db.commit()
 
-    email_subject = "New Prescription Available - ClinIQ"
-    email_body = f"""Hello {patient_name},
-
-A new prescription has been issued for you by your doctor. 
-A follow-up check-in has been scheduled for {request.follow_up_days} days from now.
-
-You can view and securely download your prescription by logging into your ClinIQ Patient Portal and checking the 'My Files' section.
-
-Best regards,
-ClinIQ Team
-"""
-    # Send the email in the background so the doctor's screen doesn't freeze waiting for it
+    # FIX 1: Use branded send_prescription_email (not the plain text fallback)
+    # FIX 2: Schedule background task BEFORE os.remove so the PDF file still exists
+    #         when the email task runs and tries to attach it
     background_tasks.add_task(
-        email_service.send_email_notification,
+        email_service.send_prescription_email,
         to_email=patient.email,
-        subject=email_subject,
-        body=email_body,
+        patient_name=patient_name,
+        doctor_name="Dr. Smith",
+        date_str=datetime.now().strftime("%d %B %Y"),
+        notes=request.doctor_notes,
+        pdf_path=file_path,
+        follow_up_days=request.follow_up_days,
     )
-    # ------------------------------------
+
+    # FIX 2 cont: Delete local PDF only AFTER the background task is registered
+    if os.path.exists(file_path):
+        os.remove(file_path)
 
     return {
         "message": "Prescription generated and sent to patient",
@@ -291,17 +237,14 @@ ClinIQ Team
 def get_patient_files_for_doctor(
     patient_id: int,
     db: Session = Depends(get_db),
-    current_doctor: schemas.TokenData = Depends(get_current_doctor),  # <-- Added
+    current_doctor: schemas.TokenData = Depends(get_current_doctor),
 ):
-    """Allows doctors to see every document, OCR result, and prescription for a specific patient."""
-    # --- 🔒 HIPAA AUDIT LOGGING ---
     audit_service.log_action(
         db=db,
         actor_id=current_doctor.user_id,
         patient_id=patient_id,
         action="VIEWED_ALL_PATIENT_FILES",
     )
-    # ------------------------------
     return (
         db.query(models.MedicalMedia)
         .filter(models.MedicalMedia.patient_id == patient_id)
