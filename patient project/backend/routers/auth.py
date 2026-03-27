@@ -1,5 +1,5 @@
 # backend/routers/auth.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -13,6 +13,8 @@ from google.auth.transport import requests
 from dotenv import load_dotenv
 import os
 
+import email_service
+
 # Create a router instance
 router = APIRouter(
     tags=["Authentication"]  # This organizes your Swagger UI nicely
@@ -22,7 +24,11 @@ GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 
 @router.post("/users/", response_model=schemas.UserRead)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    user: schemas.UserCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -41,6 +47,11 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    patient_name = new_user.email.split("@")[0]
+    background_tasks.add_task(
+        email_service.send_welcome_email, new_user.email, patient_name
+    )
     return new_user
 
 
@@ -65,7 +76,10 @@ def login(
 
 
 @router.post("/google", response_model=schemas.Token)
-def google_login(request: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
+def google_login(
+    request: schemas.GoogleAuthRequest,
+    db: Session = Depends(get_db),
+):
     try:
         # 1. Verify the token with Google
         idinfo = id_token.verify_oauth2_token(
