@@ -107,7 +107,9 @@ class MedicalReportCanvas(rl_canvas.Canvas):
         # ── Tagline below name ───────────────────────────────
         c.setFillColor(TEXT_FAINT)
         c.setFont("Helvetica", 7)
-        c.drawString(name_x, logo_y + 0.2 * mm, "The IQ your clinic never had.")
+        c.drawString(
+            name_x, logo_y + 0.2 * mm, "The intelligence your clinic never had."
+        )
 
         # ── Contact info right-aligned ───────────────────────
         c.setFillColor(TEXT_DIM)
