@@ -377,7 +377,11 @@ def send_welcome_email(to_email: str, patient_name: str) -> bool:
     heading, body_html = _welcome_html(patient_name)
     subject = "Welcome to ClinIQ — The intelligence your clinic never had."
     html = _build_html_email(
-        subject, heading, body_html, cta_text="Go to Dashboard", cta_url="#"
+        subject,
+        heading,
+        body_html,
+        cta_text="Go to Dashboard",
+        cta_url="https://patient-project-seven.vercel.app/",
     )
     return _send(to_email, subject, html)
 
