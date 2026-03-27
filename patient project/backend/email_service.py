@@ -10,9 +10,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SENDER_EMAIL = os.getenv("SENDER_EMAIL")
-SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
-
 
 # ─────────────────────────────────────────────────────────────
 #  ClinIQ HTML Email Template
@@ -301,13 +298,15 @@ def _send(
     pdf_bytes: bytes = None,
     pdf_filename: str = None,
 ) -> bool:
-    if not SENDER_EMAIL or not SENDER_PASSWORD:
+    sender_email = os.getenv("SENDER_EMAIL")
+    sender_password = os.getenv("SENDER_PASSWORD")
+    if not sender_email or not sender_password:
         print("Warning: Email credentials not set in .env. Email not sent.")
         return False
 
     msg = MIMEMultipart("mixed")
     msg["Subject"] = subject
-    msg["From"] = f"ClinIQ <{SENDER_EMAIL}>"
+    msg["From"] = f"ClinIQ <{sender_email}>"
     msg["To"] = to_email
 
     # Attach HTML body
@@ -323,7 +322,7 @@ def _send(
 
     try:
         server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.login(sender_email, sender_password)
         server.send_message(msg)
         server.quit()
         print(f"✅ Email sent to {to_email}")
