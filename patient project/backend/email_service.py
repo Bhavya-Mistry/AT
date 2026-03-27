@@ -24,7 +24,7 @@ def send_email_notification(to_email: str, subject: str, body: str):
 
     try:
         # Connect to Gmail's secure SMTP server
-        server = smtplib.SMTP_SSL("smtp.gmail.com", 587)
+        server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
         server.send_message(msg)
         server.quit()

@@ -55,6 +55,3 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-os.makedirs("uploaded_files", exist_ok=True)
-app.mount("/static", StaticFiles(directory="uploaded_files"), name="static")

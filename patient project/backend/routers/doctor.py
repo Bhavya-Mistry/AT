@@ -18,6 +18,7 @@ import drive_service
 import email_service  # <-- Add this import
 from db import get_db
 from security import get_current_doctor
+import os
 
 router = APIRouter(
     prefix="/doctor",
@@ -227,6 +228,9 @@ def create_prescription(
 
     # Upload to Drive
     drive_data = drive_service.upload_to_drive(file_path, filename, "application/pdf")
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
 
     # Save to Database
     new_media = models.MedicalMedia(
