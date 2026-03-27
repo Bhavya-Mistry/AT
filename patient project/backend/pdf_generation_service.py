@@ -83,10 +83,17 @@ class MedicalReportCanvas(rl_canvas.Canvas):
         c.setFillColor(ACCENT)
         c.roundRect(logo_x, logo_y, logo_size, logo_size, 2 * mm, fill=1, stroke=0)
 
-        # "C" glyph inside logo mark
-        c.setFillColor(WHITE)
-        c.setFont("Helvetica-Bold", 10)
-        c.drawCentredString(logo_x + logo_size / 2, logo_y + 3 * mm, "C")
+        # Plus/cross glyph matching the ClinIQ SVG logo (M12 2L12 22M7 12L17 12)
+        # Drawn as two lines: vertical and horizontal, centred in the logo mark
+        cx = logo_x + logo_size / 2
+        cy = logo_y + logo_size / 2
+        arm = 2.8 * mm
+        c.setStrokeColor(WHITE)
+        c.setLineWidth(1.6)
+        c.setLineCap(1)  # round caps
+        c.line(cx, cy - arm, cx, cy + arm)  # vertical
+        c.line(cx - arm, cy, cx + arm, cy)  # horizontal
+        c.setLineCap(0)
 
         # ── Brand name "ClinIQ" ──────────────────────────────
         name_x = logo_x + logo_size + 4 * mm
