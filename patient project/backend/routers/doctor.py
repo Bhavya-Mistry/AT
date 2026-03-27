@@ -257,16 +257,16 @@ def create_prescription(
     flag_modified(history_record, "messages")
     db.commit()
 
-    email_subject = "New Prescription Available - MediConnect"
+    email_subject = "New Prescription Available - ClinIQ"
     email_body = f"""Hello {patient_name},
 
 A new prescription has been issued for you by your doctor. 
 A follow-up check-in has been scheduled for {request.follow_up_days} days from now.
 
-You can view and securely download your prescription by logging into your MediConnect Patient Portal and checking the 'My Files' section.
+You can view and securely download your prescription by logging into your ClinIQ Patient Portal and checking the 'My Files' section.
 
 Best regards,
-MediConnect Care Team
+ClinIQ Team
 """
     # Send the email in the background so the doctor's screen doesn't freeze waiting for it
     background_tasks.add_task(

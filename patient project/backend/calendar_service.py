@@ -56,8 +56,8 @@ def create_meet_link(start_time, doctor_email, patient_email):
     end_time = start_time + timedelta(minutes=15)
 
     event_details = {
-        "summary": "MediConnect Consultation",
-        "description": "Automated Telemedicine Appointment via MediConnect AI.",
+        "summary": "ClinIQ",
+        "description": "Automated Telemedicine Appointment via ClinIQ.",
         "start": {
             "dateTime": start_time.isoformat(),
             "timeZone": "Asia/Kolkata",  # Change this to your local timezone if needed
@@ -73,7 +73,7 @@ def create_meet_link(start_time, doctor_email, patient_email):
         # THIS IS THE MAGIC PART THAT GENERATES THE MEET LINK
         "conferenceData": {
             "createRequest": {
-                "requestId": f"mediconnect_{uuid.uuid4().hex}",
+                "requestId": f"cliniq_{uuid.uuid4().hex}",
                 "conferenceSolutionKey": {"type": "hangoutsMeet"},
             }
         },

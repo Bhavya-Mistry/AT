@@ -65,12 +65,12 @@ class MedicalReportCanvas(rl_canvas.Canvas):
         # Clinic name
         c.setFillColor(WHITE)
         c.setFont("Helvetica-Bold", 18)
-        c.drawString(MARGIN, PAGE_H - 12 * mm, "MediConnect Clinic")
+        c.drawString(MARGIN, PAGE_H - 12 * mm, "ClinIQ")
 
         # Tagline / contact on the right
         c.setFont("Helvetica", 8)
         c.drawRightString(
-            w - MARGIN, PAGE_H - 8 * mm, "contact@mediconnect.com  |  +1 (800) 123-4567"
+            w - MARGIN, PAGE_H - 8 * mm, "contact@cliniq.com  |  +1 (800) 123-4567"
         )
         c.drawRightString(
             w - MARGIN, PAGE_H - 13 * mm, "123 Health Avenue, Wellness District"
