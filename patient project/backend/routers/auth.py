@@ -78,6 +78,7 @@ def login(
 @router.post("/google", response_model=schemas.Token)
 def google_login(
     request: schemas.GoogleAuthRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     try:
@@ -122,6 +123,10 @@ def google_login(
             )
             db.add(new_profile)
             db.commit()
+
+            background_tasks.add_task(
+                email_service.send_welcome_email, user.email, google_name
+            )
 
         # 5. Generate YOUR local JWT token so the rest of the app works normally
         access_token = create_access_token(
