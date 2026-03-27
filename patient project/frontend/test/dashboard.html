@@ -82,14 +82,39 @@
                             required autocomplete="new-password" aria-required="true" minlength="6" />
                         <div class="form-hint" id="regPasswordHint">Password must be at least 6 characters</div>
                     </div>
-                    <label class="form-check">
-                        <input type="checkbox" id="regPolicy" required />
-                        <span>I agree to the <a href="#">Terms of Service</a> and Privacy Policy</span>
-                    </label>
-                    <label class="form-check">
-                        <input type="checkbox" id="regBaa" />
-                        <span>I have reviewed and sign the Business Associate Agreement (BAA)</span>
-                    </label>
+                    <!-- Terms of Service -->
+                    <div class="form-check-doc" id="tosRow">
+                        <div class="doc-read-btn" id="openTosBtn" onclick="openDocModal('tos')">
+                            <svg viewBox="0 0 24 24"
+                                style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                <polyline points="14,2 14,8 20,8" />
+                            </svg>
+                            Read Terms of Service &amp; Privacy Policy
+                        </div>
+                        <label class="form-check" id="tosCheck"
+                            style="opacity:0.35;pointer-events:none;margin-top:8px;">
+                            <input type="checkbox" id="regPolicy" required disabled />
+                            <span>I have read and agree to the <strong>Terms of Service</strong> &amp; Privacy
+                                Policy</span>
+                        </label>
+                    </div>
+                    <!-- BAA -->
+                    <div class="form-check-doc" id="baaRow" style="margin-top:10px;">
+                        <div class="doc-read-btn" id="openBaaBtn" onclick="openDocModal('baa')">
+                            <svg viewBox="0 0 24 24"
+                                style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                <polyline points="14,2 14,8 20,8" />
+                            </svg>
+                            Read BAA Agreement
+                        </div>
+                        <label class="form-check" id="baaCheck"
+                            style="opacity:0.35;pointer-events:none;margin-top:8px;">
+                            <input type="checkbox" id="regBaa" disabled />
+                            <span>I have read and acknowledge the <strong>Business Associate Agreement</strong></span>
+                        </label>
+                    </div>
                     <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px"
                         id="registerBtn">
                         Create account
@@ -771,6 +796,206 @@
             </div>
         </div>
     </div>
+
+
+    <!-- ═══ DOC READ MODAL ═══ -->
+    <div id="docReadModal" style="display:none;position:fixed;inset:0;z-index:9999;
+         background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+        <div style="background:var(--card);border:1px solid var(--border-hi);border-radius:var(--radius-xl);
+                    width:min(680px,95vw);max-height:88vh;display:flex;flex-direction:column;
+                    box-shadow:0 32px 80px rgba(0,0,0,0.7);overflow:hidden;">
+            <!-- Header -->
+            <div style="padding:20px 24px 16px;border-bottom:1px solid var(--border);
+                        display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+                <div>
+                    <div id="docModalTitle" style="font-family:var(--serif);font-size:18px;color:var(--text)"></div>
+                    <div id="docModalSub"
+                        style="font-size:12px;color:var(--text-faint);margin-top:2px;font-family:var(--mono)"></div>
+                </div>
+                <button onclick="closeDocModal()"
+                    style="background:transparent;border:1px solid var(--border-hi);
+                        border-radius:var(--radius);color:var(--text-dim);padding:6px 12px;cursor:pointer;font-size:13px;">✕</button>
+            </div>
+            <!-- Scroll progress bar -->
+            <div style="height:2px;background:var(--border);flex-shrink:0;">
+                <div id="docScrollBar" style="height:100%;width:0%;background:var(--accent);transition:width 0.1s;">
+                </div>
+            </div>
+            <!-- Body -->
+            <div id="docModalBody" onscroll="onDocScroll()" style="overflow-y:auto;padding:28px 28px 20px;flex:1;
+                 font-size:13px;color:var(--text-dim);line-height:1.8;">
+            </div>
+            <!-- Footer -->
+            <div
+                style="padding:16px 24px;border-top:1px solid var(--border);flex-shrink:0;
+                        display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);">
+                <span id="docScrollHint" style="font-size:11px;color:var(--text-faint);font-family:var(--mono);">
+                    ↓ Scroll to the bottom to accept
+                </span>
+                <button id="docAcceptBtn" onclick="acceptDoc()" disabled style="padding:10px 24px;border-radius:var(--radius);background:var(--accent);
+                               color:#0D0D0F;font-size:13px;font-weight:600;border:none;cursor:not-allowed;
+                               opacity:0.4;transition:all 0.2s;font-family:var(--sans);">
+                    I have read &amp; agree
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .form-check-doc {
+            margin-bottom: 4px;
+        }
+
+        .doc-read-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-hi);
+            background: var(--card);
+            color: var(--text-dim);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .doc-read-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .doc-read-btn.done {
+            border-color: var(--green, #72B588);
+            color: var(--green, #72B588);
+            background: rgba(114, 181, 136, 0.08);
+        }
+
+        #docReadModal.open {
+            display: flex !important;
+        }
+    </style>
+
+    <script>
+        // ─── Document content ───────────────────────────────────────
+        const DOC_CONTENT = {
+            tos: {
+                title: 'Terms of Service',
+                sub: 'Please read carefully before creating your account',
+                url: 'terms-of-service.html'
+            },
+            baa: {
+                title: 'Business Associate Agreement',
+                sub: 'HIPAA BAA — required for healthcare data access',
+                url: 'baa-agreement.html'
+            }
+        };
+
+        let _currentDoc = null;
+        let _docAccepted = { tos: false, baa: false };
+
+        async function openDocModal(docKey) {
+            _currentDoc = docKey;
+            const doc = DOC_CONTENT[docKey];
+            document.getElementById('docModalTitle').textContent = doc.title;
+            document.getElementById('docModalSub').textContent = doc.sub;
+
+            // Reset state
+            const body = document.getElementById('docModalBody');
+            body.innerHTML = '<div style="color:var(--text-faint);font-family:var(--mono);font-size:12px;">Loading…</div>';
+            document.getElementById('docScrollBar').style.width = '0%';
+            document.getElementById('docScrollHint').textContent = '↓ Scroll to the bottom to accept';
+            const btn = document.getElementById('docAcceptBtn');
+            btn.disabled = true;
+            btn.style.opacity = '0.4';
+            btn.style.cursor = 'not-allowed';
+
+            document.getElementById('docReadModal').classList.add('open');
+            document.body.style.overflow = 'hidden';
+
+            // Fetch the real page and extract its content
+            try {
+                const res = await fetch(doc.url);
+                const html = await res.text();
+                const parser = new DOMParser();
+                const parsed = parser.parseFromString(html, 'text/html');
+                // Extract page-content div (shared-page.css structure)
+                const pageContent = parsed.querySelector('.page-content') || parsed.querySelector('body');
+                body.innerHTML = pageContent ? pageContent.innerHTML : '<p>Could not load document.</p>';
+                // Strip any script tags from fetched content
+                body.querySelectorAll('script').forEach(s => s.remove());
+            } catch (e) {
+                body.innerHTML = '<p style="color:var(--red)">Failed to load document. Please visit the page directly.</p>';
+            }
+        }
+
+        function closeDocModal() {
+            document.getElementById('docReadModal').classList.remove('open');
+            document.body.style.overflow = '';
+            _currentDoc = null;
+        }
+
+        function onDocScroll() {
+            const body = document.getElementById('docModalBody');
+            const scrolled = body.scrollTop;
+            const total = body.scrollHeight - body.clientHeight;
+            if (total <= 0) return;
+            const pct = Math.min(100, (scrolled / total) * 100);
+            document.getElementById('docScrollBar').style.width = pct + '%';
+
+            // Unlock accept button when within 40px of bottom
+            const btn = document.getElementById('docAcceptBtn');
+            if (pct >= 95 || scrolled >= total - 40) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+                document.getElementById('docScrollHint').textContent = '✓ You have reached the end';
+            }
+        }
+
+        function acceptDoc() {
+            if (!_currentDoc) return;
+            _docAccepted[_currentDoc] = true;
+
+            if (_currentDoc === 'tos') {
+                // Unlock TOS checkbox
+                const check = document.getElementById('tosCheck');
+                check.style.opacity = '1';
+                check.style.pointerEvents = 'auto';
+                const input = document.getElementById('regPolicy');
+                input.disabled = false;
+                input.checked = true;
+                // Mark read button as done
+                const btn = document.getElementById('openTosBtn');
+                btn.classList.add('done');
+                btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;flex-shrink:0"><polyline points="20,6 9,17 4,12"/></svg> Terms of Service read &amp; accepted';
+            } else if (_currentDoc === 'baa') {
+                const check = document.getElementById('baaCheck');
+                check.style.opacity = '1';
+                check.style.pointerEvents = 'auto';
+                const input = document.getElementById('regBaa');
+                input.disabled = false;
+                input.checked = true;
+                const btn = document.getElementById('openBaaBtn');
+                btn.classList.add('done');
+                btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;flex-shrink:0"><polyline points="20,6 9,17 4,12"/></svg> BAA read &amp; acknowledged';
+            }
+
+            closeDocModal();
+        }
+
+        // Close on backdrop click
+        document.getElementById('docReadModal').addEventListener('click', function (e) {
+            if (e.target === this) closeDocModal();
+        });
+
+        // Close on Escape
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeDocModal();
+        });
+    </script>
 
 </body>
 
