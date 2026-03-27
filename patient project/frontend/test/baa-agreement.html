@@ -12,89 +12,6 @@
         href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap"
         rel="stylesheet" />
     <link rel="stylesheet" href="shared-page.css" />
-    <style>
-        .baa-card {
-            background: var(--card);
-            border: 1px solid var(--border-hi);
-            border-radius: var(--radius-xl);
-            padding: 32px;
-            margin: 32px 0;
-        }
-
-        .baa-card h3 {
-            font-family: var(--serif);
-            font-size: 20px;
-            color: var(--text);
-            margin-bottom: 12px;
-        }
-
-        .baa-card p {
-            color: var(--text-dim);
-            margin-bottom: 0;
-        }
-
-        .baa-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin: 28px 0;
-        }
-
-        .baa-item {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 20px;
-        }
-
-        .baa-item h4 {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .baa-item p {
-            font-size: 13px;
-            color: var(--text-dim);
-            margin: 0;
-        }
-
-        .baa-icon {
-            width: 20px;
-            height: 20px;
-        }
-
-        .cta-form {
-            background: var(--card);
-            border: 1px solid var(--accent);
-            border-radius: var(--radius-xl);
-            padding: 36px;
-            margin: 40px 0;
-            text-align: center;
-        }
-
-        .cta-form h3 {
-            font-family: var(--serif);
-            font-size: 24px;
-            color: var(--text);
-            margin-bottom: 10px;
-        }
-
-        .cta-form p {
-            color: var(--text-dim);
-            margin-bottom: 24px;
-        }
-
-        @media(max-width:640px) {
-            .baa-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
 </head>
 
 <body>
@@ -126,158 +43,169 @@
             <span>Legal</span><span class="breadcrumb-sep">/</span>
             <span style="color:var(--text-dim)">BAA Agreement</span>
         </div>
-        <div class="page-tag">Legal · Enterprise</div>
+        <div class="page-tag">Legal · HIPAA</div>
         <h1 class="page-title">Business Associate <em>Agreement</em></h1>
-        <p class="page-subtitle">For healthcare organisations using ClinIQ in a HIPAA-covered capacity. Our BAA
-            ensures your use of the platform meets federal privacy law requirements.</p>
+        <p class="page-subtitle">This Agreement governs ClinIQ's handling of Protected Health Information (PHI) on
+            behalf of Covered Entities under HIPAA. By creating an account and checking the BAA box, you acknowledge and
+            agree to these terms.</p>
+        <div class="page-meta">
+            <span>Effective date: 1 January 2025</span>
+            <span>Last updated: 1 March 2025</span>
+        </div>
     </div>
 
     <div class="page-content">
 
+        <div class="toc">
+            <div class="toc-title">Table of Contents</div>
+            <ol>
+                <li><a href="#definitions">Definitions</a></li>
+                <li><a href="#obligations">ClinIQ's obligations</a></li>
+                <li><a href="#permitted-uses">Permitted uses of PHI</a></li>
+                <li><a href="#safeguards">Safeguards</a></li>
+                <li><a href="#breach">Breach notification</a></li>
+                <li><a href="#individual-rights">Individual rights</a></li>
+                <li><a href="#subcontractors">Subcontractors</a></li>
+                <li><a href="#termination">Term and termination</a></li>
+                <li><a href="#governing-law">Governing law</a></li>
+                <li><a href="#acknowledgement">Acknowledgement</a></li>
+            </ol>
+        </div>
+
         <div class="highlight-box">
-            <p><strong>What is a BAA?</strong> Under HIPAA, if your organisation is a Covered Entity (such as a
-                hospital, clinic, or health plan) and you use a third-party service that handles Protected Health
-                Information on your behalf, you are required to have a Business Associate Agreement in place.
-                ClinIQ serves as a Business Associate in this relationship.</p>
+            <p><strong>Plain-English summary:</strong> This BAA makes ClinIQ responsible for protecting any health
+                information it handles on your behalf. We will not use or share your PHI for any purpose other than
+                providing our services. You retain ownership of all patient data at all times.</p>
         </div>
 
-        <h2>Who needs a BAA?</h2>
-        <p>You need a BAA with ClinIQ if your organisation is:</p>
+        <h2 id="definitions">1. Definitions</h2>
+        <p>The following terms have the meanings given under HIPAA (45 CFR Parts 160 and 164) and the HITECH Act:</p>
         <ul>
-            <li>A healthcare provider (hospital, clinic, medical practice, pharmacy)</li>
-            <li>A health plan (insurance company, HMO, Medicare/Medicaid)</li>
-            <li>A healthcare clearinghouse</li>
-            <li>A Business Associate of a Covered Entity that processes PHI through our platform</li>
-        </ul>
-        <p>Individual patients using ClinIQ for personal healthcare do not require a BAA — this is handled within
-            our standard <a href="terms-of-service.html">Terms of Service</a> and <a href="privacy-policy.html">Privacy
-                Policy</a>.</p>
-
-        <h2>What our BAA covers</h2>
-        <div class="baa-grid">
-            <div class="baa-item">
-                <h4>
-                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--accent);fill:none;stroke-width:2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                    PHI safeguarding
-                </h4>
-                <p>We agree to implement administrative, physical, and technical safeguards to protect PHI as required
-                    by the HIPAA Security Rule.</p>
-            </div>
-            <div class="baa-item">
-                <h4>
-                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--blue);fill:none;stroke-width:2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    Permitted uses
-                </h4>
-                <p>PHI is used only to provide healthcare operations services on your behalf. No secondary uses without
-                    explicit permission.</p>
-            </div>
-            <div class="baa-item">
-                <h4>
-                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--purple);fill:none;stroke-width:2">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                    </svg>
-                    Breach notification
-                </h4>
-                <p>We will notify you within 60 days of discovering a breach of unsecured PHI, as required by the HIPAA
-                    Breach Notification Rule.</p>
-            </div>
-            <div class="baa-item">
-                <h4>
-                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--green);fill:none;stroke-width:2">
-                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                    Individual rights
-                </h4>
-                <p>We support your obligations to provide individuals access to, and accounting of, their PHI in a
-                    timely manner.</p>
-            </div>
-            <div class="baa-item">
-                <h4>
-                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--accent);fill:none;stroke-width:2">
-                        <rect x="3" y="11" width="18" height="11" rx="2" />
-                        <path d="M7 11V7a5 5 0 0110 0v4" />
-                    </svg>
-                    Subcontractor BAAs
-                </h4>
-                <p>We ensure all subcontractors who may access PHI have appropriate BAAs in place with ClinIQ.</p>
-            </div>
-            <div class="baa-item">
-                <h4>
-                    <svg class="baa-icon" viewBox="0 0 24 24" style="stroke:var(--red);fill:none;stroke-width:2">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-                    </svg>
-                    Termination & return
-                </h4>
-                <p>Upon termination of the BAA, we will return or destroy all PHI as directed and certify that all PHI
-                    has been secured.</p>
-            </div>
-        </div>
-
-        <h2>Standard BAA terms</h2>
-        <p>Our standard BAA is based on the HHS model Business Associate Agreement and includes all required provisions
-            under 45 CFR §164.308, §164.310, §164.312, and §164.316. Key terms include:</p>
-        <ul>
-            <li><strong>Term:</strong> Coterminous with the underlying service agreement</li>
-            <li><strong>Governing law:</strong> Federal law (HIPAA/HITECH) and the laws of the State of California</li>
-            <li><strong>Liability allocation:</strong> Each party is responsible for its own HIPAA compliance
-                obligations</li>
-            <li><strong>Audit rights:</strong> We will cooperate with HHS OCR audits and investigations</li>
-            <li><strong>Amendment:</strong> We may amend the BAA to comply with changes in HIPAA regulations with 30
-                days notice</li>
+            <li><strong>Covered Entity</strong> — a healthcare provider, health plan, or healthcare clearinghouse
+                subject to HIPAA.</li>
+            <li><strong>Business Associate (ClinIQ)</strong> — a person or entity that performs functions or activities
+                on behalf of a Covered Entity involving the use or disclosure of PHI.</li>
+            <li><strong>Protected Health Information (PHI)</strong> — individually identifiable health information
+                transmitted or maintained in any form or medium.</li>
+            <li><strong>Breach</strong> — an impermissible acquisition, access, use, or disclosure of PHI that
+                compromises the security or privacy of such information.</li>
+            <li><strong>Security Incident</strong> — the attempted or successful unauthorised access, use, disclosure,
+                modification, or destruction of information or interference with system operations.</li>
         </ul>
 
-        <h2>Requesting a BAA</h2>
-        <p>Enterprise and institutional customers can request our standard BAA through the following process:</p>
-        <ol>
-            <li>Contact our enterprise team at <a href="mailto:enterprise@cliniq.health">enterprise@cliniq.health</a>
+        <h2 id="obligations">2. ClinIQ's obligations</h2>
+        <p>As your Business Associate, ClinIQ agrees to:</p>
+        <ul>
+            <li>Not use or disclose PHI other than as permitted or required by this Agreement or as required by law.
             </li>
-            <li>Provide your organisation name, type (Covered Entity or Business Associate), and primary contact</li>
-            <li>Our legal team will send the BAA via DocuSign within 2 business days</li>
-            <li>Once countersigned, the BAA is effective immediately</li>
-        </ol>
-        <p>If you require custom BAA terms, our legal team is available to negotiate amendments. Note that material
-            deviations from our standard form may require additional review time.</p>
+            <li>Use appropriate safeguards and comply with the HIPAA Security Rule with respect to electronic PHI.</li>
+            <li>Report to you any use or disclosure of PHI not provided for by this Agreement of which ClinIQ becomes
+                aware, including any security incidents.</li>
+            <li>Ensure that any subcontractors that create, receive, maintain, or transmit PHI on behalf of ClinIQ agree
+                to the same restrictions and conditions that apply to ClinIQ under this Agreement.</li>
+            <li>Make PHI available to you as necessary to fulfil your obligations to provide individuals with access to
+                their PHI.</li>
+            <li>Make its internal practices, books, and records relating to the use and disclosure of PHI available to
+                the Secretary of the Department of Health and Human Services for the purpose of determining compliance
+                with HIPAA.</li>
+            <li>Return or destroy all PHI received from you, or created or received by ClinIQ on your behalf, upon
+                termination of this Agreement, where feasible.</li>
+        </ul>
 
-        <div class="cta-form">
-            <h3>Request a BAA</h3>
-            <p>Fill out the form below and our enterprise team will be in touch within one business day.</p>
-            <div style="display:flex;flex-direction:column;gap:12px;text-align:left;max-width:420px;margin:0 auto">
-                <input type="text" placeholder="Organisation name"
-                    style="background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--radius);padding:12px 16px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;"
-                    onfocus="this.style.borderColor='var(--accent)'"
-                    onblur="this.style.borderColor='var(--border-hi)'" />
-                <input type="email" placeholder="Your email address"
-                    style="background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--radius);padding:12px 16px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;"
-                    onfocus="this.style.borderColor='var(--accent)'"
-                    onblur="this.style.borderColor='var(--border-hi)'" />
-                <select
-                    style="background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--radius);padding:12px 16px;color:var(--text-dim);font-family:var(--sans);font-size:14px;outline:none;cursor:pointer;">
-                    <option value="">Organisation type</option>
-                    <option>Healthcare provider</option>
-                    <option>Health plan</option>
-                    <option>Healthcare clearinghouse</option>
-                    <option>Business Associate</option>
-                    <option>Other</option>
-                </select>
-                <button class="btn-nav-primary" style="padding:13px;font-size:14px;border-radius:var(--radius)"
-                    onclick="alert('Thank you. Our enterprise team will contact you within one business day.')">Request
-                    BAA →</button>
-            </div>
-            <p style="font-size:12px;color:var(--text-faint);margin-top:16px">Or email us directly at <a
-                    href="mailto:enterprise@cliniq.health"
-                    style="color:var(--text-faint);border-bottom:1px solid var(--border-hi)">enterprise@cliniq.health</a>
-            </p>
+        <h2 id="permitted-uses">3. Permitted uses of PHI</h2>
+        <p>ClinIQ may use or disclose PHI only in the following circumstances:</p>
+        <ul>
+            <li>To provide the services described in the ClinIQ Terms of Service on your behalf.</li>
+            <li>For the proper management and administration of ClinIQ, provided that disclosures are required by law or
+                ClinIQ obtains reasonable assurances that the PHI will be held confidentially.</li>
+            <li>To carry out the legal responsibilities of ClinIQ, under the same conditions described above.</li>
+            <li>To provide data aggregation services relating to your healthcare operations, as permitted by HIPAA.</li>
+            <li>As required by law, including in response to a valid court order, subpoena, or government authority.
+            </li>
+        </ul>
+        <p>ClinIQ will not use or disclose PHI for any marketing or commercial purposes, and will never sell PHI.</p>
+
+        <h2 id="safeguards">4. Safeguards</h2>
+        <p>ClinIQ implements and maintains industry-standard technical, physical, and administrative safeguards to
+            protect PHI, including:</p>
+        <ul>
+            <li>AES-256 encryption for all PHI at rest.</li>
+            <li>TLS 1.3 encryption for all PHI in transit.</li>
+            <li>Role-based access controls limiting PHI access to authorised personnel only.</li>
+            <li>Full audit logging of all access to PHI, available to you on request.</li>
+            <li>Annual third-party security assessments and penetration testing.</li>
+            <li>Employee training on HIPAA compliance and PHI handling.</li>
+        </ul>
+        <p>ClinIQ will maintain a comprehensive information security programme consistent with the HIPAA Security Rule
+            (45 CFR Part 164, Subpart C).</p>
+
+        <h2 id="breach">5. Breach notification</h2>
+        <p>ClinIQ will notify you without unreasonable delay, and in no case later than 60 calendar days after
+            discovery, of any Breach of unsecured PHI. Such notification will include, to the extent possible:</p>
+        <ul>
+            <li>A description of the Breach, including the date of the Breach and date of discovery.</li>
+            <li>A description of the types of PHI involved.</li>
+            <li>Any steps individuals should take to protect themselves from potential harm.</li>
+            <li>A description of what ClinIQ is doing to investigate the Breach, mitigate harm, and protect against
+                further Breaches.</li>
+            <li>Contact information for you to ask questions or learn additional information.</li>
+        </ul>
+        <p>ClinIQ will also report to you any Security Incidents of which it becomes aware, even if the incident did not
+            result in a Breach.</p>
+
+        <h2 id="individual-rights">6. Individual rights</h2>
+        <p>ClinIQ will support your obligations to individuals under HIPAA by:</p>
+        <ul>
+            <li>Making PHI available to individuals who request access to their records within the timeframes required
+                by HIPAA.</li>
+            <li>Amending PHI in a designated record set at your direction and in accordance with HIPAA.</li>
+            <li>Providing an accounting of disclosures of PHI to individuals upon your request.</li>
+            <li>Incorporating any restrictions agreed to by you pursuant to an individual's request that ClinIQ restrict
+                the use or disclosure of their PHI.</li>
+        </ul>
+
+        <h2 id="subcontractors">7. Subcontractors</h2>
+        <p>ClinIQ will ensure that any subcontractors or agents to whom it delegates functions, activities, or services
+            that involve the creation, receipt, maintenance, or transmission of PHI execute a written agreement with
+            ClinIQ that contains the same restrictions, conditions, and requirements applicable to ClinIQ under this
+            Agreement. ClinIQ remains liable for the acts and omissions of its subcontractors to the same extent as its
+            own acts and omissions.</p>
+
+        <h2 id="termination">8. Term and termination</h2>
+        <p>This Agreement is effective from the date you create your ClinIQ account and remains in effect until the
+            termination of the underlying service relationship between you and ClinIQ.</p>
+        <p>Either party may terminate this Agreement if the other party commits a material breach of any provision and
+            fails to cure such breach within 30 days of written notice. Upon termination, ClinIQ will, at your election,
+            return or securely destroy all PHI held on your behalf and provide written certification of such
+            destruction. Where return or destruction is not feasible, the protections of this Agreement will continue to
+            apply to any retained PHI.</p>
+
+        <h2 id="governing-law">9. Governing law</h2>
+        <p>This Agreement is governed by federal law, including HIPAA and the HITECH Act, and the laws of the State of
+            California. Any dispute arising under or related to this Agreement will be resolved in the courts of Santa
+            Clara County, California, and both parties consent to personal jurisdiction and venue in such courts.</p>
+        <p>This Agreement constitutes the entire agreement between the parties with respect to its subject matter and
+            supersedes all prior agreements, representations, and understandings. ClinIQ may amend this Agreement to
+            comply with changes in HIPAA regulations, with 30 days written notice to you.</p>
+
+        <h2 id="acknowledgement">10. Acknowledgement</h2>
+        <p>By checking the BAA acknowledgement box during account registration, you confirm that:</p>
+        <ul>
+            <li>You have read and understood this Business Associate Agreement in its entirety.</li>
+            <li>You have the authority to enter into this Agreement on behalf of your organisation (if applicable).</li>
+            <li>You agree to be bound by the terms of this Agreement.</li>
+            <li>Individual patients using ClinIQ for personal health management acknowledge this Agreement as part of
+                the standard service terms and do not require a separate enterprise BAA.</li>
+        </ul>
+
+        <div class="highlight-box">
+            <p><strong>Enterprise organisations</strong> requiring a countersigned BAA for compliance purposes should
+                contact <a href="mailto:enterprise@cliniq.health">enterprise@cliniq.health</a>. Our legal team will
+                provide a formal, executed copy within 2 business days.</p>
         </div>
 
         <div class="info-box">
-            <p>📎 Related documents: <a href="privacy-policy.html"
+            <p>Related documents: <a href="privacy-policy.html"
                     style="color:var(--blue);border-bottom:1px solid rgba(123,167,196,0.3)">Privacy Policy</a> · <a
                     href="security.html"
                     style="color:var(--blue);border-bottom:1px solid rgba(123,167,196,0.3)">Security Overview</a> · <a
@@ -331,12 +259,19 @@
         <div class="footer-bottom">
             <span>© 2026 ClinIQ. All rights reserved.</span>
             <div class="footer-bottom-links">
-                <a href="privacy-policy.html">Privacy</a><a href="terms-of-service.html">Terms</a><a
-                    href="help-centre.html">Accessibility</a>
+                <a href="privacy-policy.html">Privacy</a>
+                <a href="terms-of-service.html">Terms</a>
+                <a href="help-centre.html">Accessibility</a>
             </div>
         </div>
     </footer>
-    <script>window.addEventListener('scroll', () => { document.getElementById('mainNav').style.background = window.scrollY > 40 ? 'rgba(13,13,15,0.97)' : 'rgba(13,13,15,0.85)'; }, { passive: true });</script>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            document.getElementById('mainNav').style.background =
+                window.scrollY > 40 ? 'rgba(13,13,15,0.97)' : 'rgba(13,13,15,0.85)';
+        }, { passive: true });
+    </script>
 </body>
 
 </html>
