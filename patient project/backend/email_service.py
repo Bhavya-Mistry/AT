@@ -68,21 +68,13 @@ def _build_html_email(
                   <td style="padding:24px 32px;">
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        <!-- Logo mark -->
-                        <td style="padding-right:12px;">
-                          <div style="width:36px;height:36px;background:linear-gradient(140deg,#C9A96E,#A07040);
-                                      border-radius:8px;display:inline-flex;align-items:center;
-                                      justify-content:center;text-align:center;line-height:36px;">
-                            <!-- Plus icon approximated with text for email clients -->
-                            <span style="color:#FDFBF7;font-size:22px;font-weight:300;line-height:1;">✚</span>
-                          </div>
-                        </td>
+                        
                         <!-- Brand name -->
                         <td style="vertical-align:middle;">
                           <span style="font-size:20px;font-weight:700;color:#1A1714;letter-spacing:-0.01em;">Clin</span><span
                             style="font-size:20px;font-weight:700;color:#C9A96E;letter-spacing:-0.01em;">IQ</span>
                           <div style="font-size:10px;color:#9E948A;margin-top:1px;letter-spacing:0.04em;">
-                            The IQ your clinic never had.
+                            The intelligence your clinic never had.
                           </div>
                         </td>
                       </tr>
