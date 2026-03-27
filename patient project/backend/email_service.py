@@ -136,11 +136,11 @@ def _build_html_email(
                   <td style="font-size:11px;color:#9E948A;line-height:1.7;">
                     <strong style="color:#6B635A;">ClinIQ</strong> — AI-assisted medical consultations<br/>
                     This is an automated message. Please do not reply to this email.<br/>
-                    <a href="#" style="color:#A07040;text-decoration:none;">Privacy Policy</a>
+                    <a href="https://patient-project-seven.vercel.app/privacy-policy.html" style="color:#A07040;text-decoration:none;">Privacy Policy</a>
                     &nbsp;·&nbsp;
-                    <a href="#" style="color:#A07040;text-decoration:none;">Terms of Service</a>
+                    <a href="https://patient-project-seven.vercel.app/terms-of-service.html" style="color:#A07040;text-decoration:none;">Terms of Service</a>
                     &nbsp;·&nbsp;
-                    <a href="#" style="color:#A07040;text-decoration:none;">Help Centre</a>
+                    <a href="https://patient-project-seven.vercel.app/help-centre.html" style="color:#A07040;text-decoration:none;">Help Centre</a>
                   </td>
                   <td align="right" style="vertical-align:top;">
                     <span style="font-size:10px;color:#9E948A;">© 2026 ClinIQ</span>
