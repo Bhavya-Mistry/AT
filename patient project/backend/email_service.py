@@ -68,7 +68,15 @@ def _build_html_email(
                   <td style="padding:24px 32px;">
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        
+                        <!-- Logo mark -->
+                        <td style="padding-right:12px;">
+                          <div style="width:36px;height:36px;background:linear-gradient(140deg,#C9A96E,#A07040);
+                                      border-radius:8px;display:inline-flex;align-items:center;
+                                      justify-content:center;text-align:center;line-height:36px;">
+                            <!-- Plus icon approximated with text for email clients -->
+                            <span style="color:#FDFBF7;font-size:22px;font-weight:300;line-height:1;">✚</span>
+                          </div>
+                        </td>
                         <!-- Brand name -->
                         <td style="vertical-align:middle;">
                           <span style="font-size:20px;font-weight:700;color:#1A1714;letter-spacing:-0.01em;">Clin</span><span
@@ -287,7 +295,11 @@ def _welcome_html(patient_name: str) -> tuple:
 #  Core Send Function
 # ─────────────────────────────────────────────────────────────
 def _send(
-    to_email: str, subject: str, html_body: str, attachment_path: str = None
+    to_email: str,
+    subject: str,
+    html_body: str,
+    pdf_bytes: bytes = None,
+    pdf_filename: str = None,
 ) -> bool:
     if not SENDER_EMAIL or not SENDER_PASSWORD:
         print("Warning: Email credentials not set in .env. Email not sent.")
@@ -301,15 +313,13 @@ def _send(
     # Attach HTML body
     msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-    # Attach PDF if provided
-    if attachment_path and os.path.exists(attachment_path):
-        with open(attachment_path, "rb") as f:
-            part = MIMEBase("application", "pdf")
-            part.set_payload(f.read())
-            encoders.encode_base64(part)
-            filename = os.path.basename(attachment_path)
-            part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
-            msg.attach(part)
+    # Attach PDF bytes directly — no file path needed, safe on ephemeral filesystems
+    if pdf_bytes and pdf_filename:
+        part = MIMEBase("application", "pdf")
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f'attachment; filename="{pdf_filename}"')
+        msg.attach(part)
 
     try:
         server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
@@ -332,7 +342,8 @@ def send_prescription_email(
     doctor_name: str,
     date_str: str,
     notes: str,
-    pdf_path: str = None,
+    pdf_bytes: bytes = None,
+    pdf_filename: str = None,
     follow_up_days: int = None,
 ) -> bool:
     heading, body_html = _prescription_html(
@@ -340,7 +351,9 @@ def send_prescription_email(
     )
     subject = f"ClinIQ — Your Prescription from Dr. {doctor_name}"
     html = _build_html_email(subject, heading, body_html)
-    return _send(to_email, subject, html, attachment_path=pdf_path)
+    return _send(
+        to_email, subject, html, pdf_bytes=pdf_bytes, pdf_filename=pdf_filename
+    )
 
 
 def send_appointment_confirmation(

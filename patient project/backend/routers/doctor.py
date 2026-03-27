@@ -209,9 +209,16 @@ def create_prescription(
     flag_modified(history_record, "messages")
     db.commit()
 
-    # FIX 1: Use branded send_prescription_email (not the plain text fallback)
-    # FIX 2: Schedule background task BEFORE os.remove so the PDF file still exists
-    #         when the email task runs and tries to attach it
+    # FIX: Read PDF into memory FIRST, then delete the file
+    # This is critical on Render — ephemeral filesystem means the file may be gone
+    # by the time the background task runs if we delete it before registering the task
+    pdf_bytes = None
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            pdf_bytes = f.read()
+        os.remove(file_path)  # safe to delete now — bytes are in memory
+
+    # Send branded prescription email with PDF bytes attached (not file path)
     background_tasks.add_task(
         email_service.send_prescription_email,
         to_email=patient.email,
@@ -219,13 +226,10 @@ def create_prescription(
         doctor_name="Dr. Smith",
         date_str=datetime.now().strftime("%d %B %Y"),
         notes=request.doctor_notes,
-        pdf_path=file_path,
+        pdf_bytes=pdf_bytes,
+        pdf_filename=filename,
         follow_up_days=request.follow_up_days,
     )
-
-    # FIX 2 cont: Delete local PDF only AFTER the background task is registered
-    if os.path.exists(file_path):
-        os.remove(file_path)
 
     return {
         "message": "Prescription generated and sent to patient",
