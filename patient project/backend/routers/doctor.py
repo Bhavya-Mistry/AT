@@ -200,7 +200,7 @@ def create_prescription(
     # Inject follow-up message into chat
     follow_up_msg = (
         f"*** AUTOMATED SYSTEM MESSAGE ***\n"
-        f"Dr. Smith has issued a prescription. It is now available in your 'My Files' tab.\n"
+        f"Doctor has issued a prescription. It is now available in your 'My Files' tab.\n"
         f"A follow-up check-in has been scheduled for {request.follow_up_days} days from now."
     )
     messages = history_record.messages if history_record.messages else []
@@ -223,7 +223,7 @@ def create_prescription(
         email_service.send_prescription_email,
         to_email=patient.email,
         patient_name=patient_name,
-        doctor_name="Dr. Smith",
+        doctor_name="Smith",
         date_str=datetime.now().strftime("%d %B %Y"),
         notes=request.doctor_notes,
         pdf_bytes=pdf_bytes,
